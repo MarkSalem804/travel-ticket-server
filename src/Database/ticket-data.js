@@ -78,9 +78,24 @@ async function getOfficeById(officeId) {
 
 async function addTicket(data) {
   try {
-    const ticketData = await prisma.tickets.create(data);
+    const ticketData = await prisma.requestform.create({ data: data });
 
     return ticketData;
+  } catch (error) {
+    console.error("Error submitting ticket! ", error);
+    throw new Error("Error submitting ticket");
+  }
+}
+
+async function updateTicket(ticketId, updatedData) {
+  try {
+    const updatedTicket = await prisma.requestform.update({
+      where: {
+        id: ticketId,
+      },
+      data: updatedData,
+    });
+    return updatedTicket;
   } catch (error) {
     console.error("Error submitting ticket! ", error);
     throw new Error("Error submitting ticket");
@@ -93,4 +108,6 @@ module.exports = {
   getDriverByDriverId,
   getOfficeById,
   getAdminEmails,
+  addTicket,
+  updateTicket,
 };

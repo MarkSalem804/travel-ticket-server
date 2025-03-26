@@ -41,4 +41,22 @@ ticketRouter.post("/submitTicket", async (req, res) => {
   }
 });
 
+ticketRouter.put("/updateRequest/:ticketId", async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.ticketId);
+    const updatedData = req.body;
+
+    if (!ticketId) {
+      return res.status(400).json({ error: "Ticket ID is required" });
+    }
+
+    const newTicket = await ticketService.updateRequest(ticketId, updatedData);
+
+    res.status(201).json(newTicket);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 module.exports = ticketRouter;

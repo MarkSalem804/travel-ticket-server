@@ -43,7 +43,7 @@ model requestform {
   destination          String   @db.Text
   purpose              String   @db.Text
   departureDate        DateTime
-  arrrivalDate         DateTime
+  arrivalDate          DateTime
   authorizedPassengers String?  @db.Text
   remarks              String?  @db.Text
   fileTitle            String?  @db.Text
