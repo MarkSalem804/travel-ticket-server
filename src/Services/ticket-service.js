@@ -139,9 +139,20 @@ async function updateRequest(ticketId, updatedData) {
   }
 }
 
+async function getAllOffices() {
+  try {
+    const fetchedOffices = await ticketData.getAllOffices();
+    return fetchedOffices;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
 module.exports = {
   createOffice,
   createDriver,
   submitTicket,
   updateRequest,
+  getAllOffices,
 };

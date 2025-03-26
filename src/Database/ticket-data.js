@@ -38,6 +38,16 @@ async function getAdminEmails() {
   }
 }
 
+async function getAllOffices() {
+  try {
+    const offices = await prisma.offices.findMany();
+    return offices;
+  } catch (error) {
+    console.error("Error fetching offices!", error);
+    throw new Error("Error fetching offices");
+  }
+}
+
 async function getDriverByDriverId(driverId) {
   try {
     const parsedDriverId = parseInt(driverId);
@@ -110,5 +120,6 @@ module.exports = {
   getOfficeById,
   getAdminEmails,
   addTicket,
+  getAllOffices,
   updateTicket,
 };

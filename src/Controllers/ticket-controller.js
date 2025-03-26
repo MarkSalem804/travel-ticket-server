@@ -61,4 +61,14 @@ ticketRouter.put("/updateRequest/:ticketId", async (req, res) => {
   }
 });
 
+ticketRouter.get("/getAllOffices", async (req, res) => {
+  try {
+    const fetchedOffices = await ticketService.getAllOffices();
+    res.status(200).json(fetchedOffices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 module.exports = ticketRouter;
