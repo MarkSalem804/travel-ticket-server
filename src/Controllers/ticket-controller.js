@@ -1,4 +1,5 @@
 const express = require("express");
+const upload = require("../Middlewares/upload");
 const ticketRouter = express.Router();
 const ticketService = require("../Services/ticket-service");
 
@@ -28,11 +29,12 @@ ticketRouter.post("/addDriver", async (req, res) => {
   }
 });
 
-ticketRouter.post("/submitTicket", async (req, res) => {
+ticketRouter.post("/submitTicket", upload.single("file"), async (req, res) => {
   try {
-    const data = req.body;
+    const fileName = req.file ? req.file.filename : null;
+    const requestData = { ...req.body, fileTitle: fileName };
 
-    const ticket = await ticketService.submitTicket(data);
+    const ticket = await ticketService.submitTicket(requestData);
 
     res.status(201).json(ticket);
   } catch (error) {

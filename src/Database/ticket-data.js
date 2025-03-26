@@ -40,13 +40,14 @@ async function getAdminEmails() {
 
 async function getDriverByDriverId(driverId) {
   try {
-    if (!driverId) {
+    const parsedDriverId = parseInt(driverId);
+    if (!parsedDriverId) {
       console.log("required driverId");
     }
 
     const driver = await prisma.drivers.findFirst({
       where: {
-        id: driverId,
+        id: parsedDriverId,
       },
       select: {
         driverName: true,
@@ -66,7 +67,7 @@ async function getOfficeById(officeId) {
   try {
     const office = await prisma.offices.findFirst({
       where: {
-        id: officeId,
+        id: parseInt(officeId),
       },
     });
     return office;
