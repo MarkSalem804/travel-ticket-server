@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id          Int      @id @default(autoincrement())
+  username    String   @db.Text
+  password    String   @db.Text
+  email       String   @db.Text
+  contactNo   String   @unique
+  designation String   @db.Text
+  role        String   @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+}
+
+model tickets {
+  id           Int    @id @default(autoincrement())
+  generatedUID String @unique
+  status       String @db.Text
+}
+
+model requestform {
+  id                   Int      @id @default(autoincrement())
+  status               String?
+  requestedBy          String   @db.Text
+  email                String?  @db.Text
+  office               offices  @relation(fields: [officeId], references: [id])
+  officeId             Int
+  requestorOffice      String   @db.Text
+  designation          String   @db.Text
+  destination          String   @db.Text
+  purpose              String   @db.Text
+  departureDate        DateTime
+  arrrivalDate         DateTime
+  authorizedPassengers String?  @db.Text
+  remarks              String?  @db.Text
+  fileTitle            String?  @db.Text
+  drivers              drivers? @relation(fields: [driverId], references: [id])
+  driverId             Int?
+  driverName           String?
+  driverContactNo      String?
+  driverEmail          String?
+}
+
+model offices {
+  id          Int           @id @default(autoincrement())
+  officeName  String        @db.Text
+  requestform requestform[]
+}
+
+model drivers {
+  id          Int           @id @default(autoincrement())
+  driverName  String
+  contactNo   String
+  email       String
+  requestform requestform[]
+}
