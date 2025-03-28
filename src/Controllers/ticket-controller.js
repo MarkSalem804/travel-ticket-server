@@ -52,6 +52,10 @@ ticketRouter.put("/updateRequest/:ticketId", async (req, res) => {
       return res.status(400).json({ error: "Ticket ID is required" });
     }
 
+    console.log("🛠️ Incoming Request Body:", req.body);
+    console.log("🔍 Headers:", req.headers);
+    console.log("📦 Raw Body:", req.body);
+
     const newTicket = await ticketService.updateRequest(ticketId, updatedData);
 
     res.status(201).json(newTicket);

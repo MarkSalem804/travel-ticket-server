@@ -13,6 +13,7 @@ const prisma = new PrismaClient();
 const port = process.env.PORT || 8050;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Handle options credentials check - before CORS!
 // and fetch cookies credentials requirement

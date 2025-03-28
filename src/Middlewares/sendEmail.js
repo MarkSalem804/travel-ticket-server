@@ -1,5 +1,7 @@
 require("dotenv").config();
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -10,23 +12,32 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Send an email
+ * Send an email with optional attachment
  * @param {string} to - Recipient email address
  * @param {string} subject - Email subject
  * @param {string} html - Email content (HTML format)
+ * @param {string|null} attachmentPath - Optional file attachment path
  */
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (to, subject, html, attachmentPath = null) => {
   try {
     const mailOptions = {
-      from: "<yourcompany@gmail.com>",
+      from: `"SDOIC - TRIP TICKET MAIL" <${process.env.EMAIL_USER}>`, // Use company name as sender
       to,
       subject,
       html,
+      attachments: attachmentPath
+        ? [
+            {
+              filename: path.basename(attachmentPath),
+              path: attachmentPath,
+            },
+          ]
+        : [],
     };
 
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error(`❌ Error sending email: ${error.message}`);
+    console.error(`❌ Error sending email:`, error);
   }
 };
 

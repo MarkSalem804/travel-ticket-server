@@ -32,22 +32,24 @@ model tickets {
 }
 
 model requestform {
-  id                   Int      @id @default(autoincrement())
+  id                   Int       @id @default(autoincrement())
   status               String?
-  requestedBy          String   @db.Text
-  email                String?  @db.Text
-  office               offices  @relation(fields: [officeId], references: [id])
+  requestedBy          String    @db.Text
+  email                String?   @db.Text
+  office               offices   @relation(fields: [officeId], references: [id])
   officeId             Int
-  requestorOffice      String   @db.Text
-  designation          String   @db.Text
-  destination          String   @db.Text
-  purpose              String   @db.Text
-  departureDate        DateTime
-  arrivalDate          DateTime
-  authorizedPassengers String?  @db.Text
-  remarks              String?  @db.Text
-  fileTitle            String?  @db.Text
-  drivers              drivers? @relation(fields: [driverId], references: [id])
+  requestorOffice      String    @db.Text
+  designation          String    @db.Text
+  destination          String    @db.Text
+  purpose              String    @db.Text
+  departureDate        DateTime?
+  arrivalDate          DateTime?
+  departureTime        DateTime?
+  arrivalTime          DateTime?
+  authorizedPassengers String?   @db.Text
+  remarks              String?   @db.Text
+  fileTitle            String?   @db.Text
+  drivers              drivers?  @relation(fields: [driverId], references: [id])
   driverId             Int?
   driverName           String?
   driverContactNo      String?
