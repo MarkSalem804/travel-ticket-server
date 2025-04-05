@@ -29,6 +29,16 @@ async function generateTripTicket(data) {
   purposeField.setFontSize(9);
   purposeField.enableReadOnly();
 
+  const destinationField = form.getTextField("DESTINATION");
+  destinationField.setText(data.destination);
+  destinationField.setFontSize(9);
+  destinationField.enableReadOnly();
+
+  const passengersField = form.getTextField("PASSENGERS");
+  passengersField.setText(data.authorizedPassenger);
+  passengersField.setFontSize(9);
+  passengersField.enableReadOnly();
+
   // Flatten the form to remove interactive fields
   form.flatten();
 

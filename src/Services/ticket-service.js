@@ -1,3 +1,9 @@
+const { v4: uuidv4 } = require("uuid");
+const { DateTime } = require("luxon");
+const bwipjs = require("bwip-js");
+const fs = require("fs");
+const { createCanvas, loadImage } = require("canvas");
+const QRCode = require("qrcode");
 const ticketData = require("../Database/ticket-data");
 const generateTripTicket = require("../Utils/generateTicket");
 const sendEmail = require("../Middlewares/sendEmail");
@@ -7,6 +13,109 @@ const timezone = require("dayjs/plugin/timezone");
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+function formatTimeRaw(timeString) {
+  if (!timeString)
+    return { formattedTime24Hour: null, formattedTime12Hour: null };
+
+  const timePart = timeString.split("T")[1]?.slice(0, 5); // "13:00"
+
+  // Convert to 12-hour format
+  let [hours, minutes] = timePart.split(":").map(Number);
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12; // Convert 0 to 12
+
+  const formattedTime12Hour = `${hours}:${minutes
+    .toString()
+    .padStart(2, "0")} ${ampm}`;
+  const formattedTime24Hour = timePart;
+
+  return {
+    formattedTime24Hour,
+    formattedTime12Hour,
+  };
+}
+
+async function generateBarcodeWithDetails(uniqueUID, details, barcodePath) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Format the dates and times exactly as they are without timezone conversion
+      const formattedDepartureDate = DateTime.fromISO(details.departureDate, {
+        setZone: false,
+      }).toFormat("yyyy-MM-dd");
+      const formattedArrivalDate = DateTime.fromISO(details.arrivalDate, {
+        setZone: false,
+      }).toFormat("yyyy-MM-dd");
+
+      console.log(details.arrivalTime);
+      console.log(details.departureTime);
+
+      // Format times
+      const {
+        formattedTime24Hour: formattedDepartureTime24Hr,
+        formattedTime12Hour: formattedDepartureTime12Hr,
+      } = formatTimeRaw(details.departureTime);
+      const {
+        formattedTime24Hour: formattedArrivalTime24Hr,
+        formattedTime12Hour: formattedArrivalTime12Hr,
+      } = formatTimeRaw(details.arrivalTime);
+
+      // Choose the format you want (either 24-hour or 12-hour)
+      const formattedDepartureTime = formattedDepartureTime12Hr; // or use formattedDepartureTime24Hr if you prefer 24-hour format
+      const formattedArrivalTime = formattedArrivalTime12Hr; // or use formattedArrivalTime24Hr if you prefer 24-hour format
+
+      // Generate Barcode
+      const barcodeBuffer = await new Promise((resolve, reject) => {
+        bwipjs.toBuffer(
+          {
+            bcid: "code128", // Barcode type
+            text: uniqueUID, // Unique ID as barcode content
+            scale: 3,
+            height: 10,
+            includetext: false,
+            textxalign: "center",
+          },
+          (err, png) => {
+            if (err) return reject(err);
+            resolve(png);
+          }
+        );
+      });
+
+      // Create Canvas
+      const canvas = createCanvas(400, 340); // Adjust size for text + barcode
+      const ctx = canvas.getContext("2d");
+
+      // Background
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Text Details
+      ctx.fillStyle = "#000000";
+      ctx.font = "16px Arial";
+      ctx.fillText(`Requested By: ${details.requestedBy}`, 20, 30);
+      ctx.fillText(`Driver: ${details.driverName}`, 20, 55);
+      ctx.fillText(`Destination: ${details.destination}`, 20, 80);
+      ctx.fillText(`Purpose: ${details.purpose}`, 20, 105);
+      ctx.fillText(`Departure Date: ${formattedDepartureDate}`, 20, 130);
+      ctx.fillText(`Arrival Date: ${formattedArrivalDate}`, 20, 155);
+      ctx.fillText(`Departure Time: ${formattedDepartureTime}`, 20, 180);
+      ctx.fillText(`Arrival Time: ${formattedArrivalTime}`, 20, 205);
+
+      // Load Barcode
+      const barcodeImg = await loadImage(barcodeBuffer);
+      ctx.drawImage(barcodeImg, 50, 220, 300, 80);
+
+      // Save Image
+      const out = fs.createWriteStream(barcodePath);
+      const stream = canvas.createPNGStream();
+      stream.pipe(out);
+      out.on("finish", resolve);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
 async function createOffice(data) {
   try {
@@ -42,11 +151,6 @@ async function submitTicket(data) {
       officeDetails = await ticketData.getOfficeById(data.officeId);
     }
 
-    console.log("departureDate type:", typeof data.departureDate);
-    console.log("departureDate value:", data.departureDate);
-    console.log("departureTime type:", typeof data.departureTime);
-    console.log("departureTime value:", data.departureTime);
-
     const convertToUTC = (dateString) => {
       if (!dateString) return null;
       const localDate = new Date(dateString);
@@ -68,6 +172,7 @@ async function submitTicket(data) {
       arrivalDate: convertToUTC(data.arrivalDate),
       departureTime: convertToUTC(data.departureTime),
       arrivalTime: convertToUTC(data.arrivalTime),
+      created_at: data.created_at ? convertToUTC(data.created_at) : undefined,
       authorizedPassengers: data.authorizedPassengers,
       remarks: data.remarks,
       fileTitle: data.fileTitle || null,
@@ -90,19 +195,17 @@ async function updateRequest(ticketId, updatedData) {
     let driverDetails = null;
     let officeDetails = null;
 
+    // Fetch driver details
     if (updatedData.driverId) {
       driverDetails = await ticketData.getDriverByDriverId(
         updatedData.driverId
       );
     }
 
+    // Fetch office details
     if (updatedData.officeId) {
       officeDetails = await ticketData.getOfficeById(updatedData.officeId);
     }
-
-    console.log(officeDetails);
-    console.log(driverDetails);
-    console.log("🛠️ updatedData:", updatedData);
 
     const requestFormData = {
       status: updatedData.status || "Pending",
@@ -115,6 +218,8 @@ async function updateRequest(ticketId, updatedData) {
       purpose: updatedData.purpose,
       departureDate: updatedData.departureDate,
       arrivalDate: updatedData.arrivalDate,
+      departureTime: updatedData.departureTime,
+      arrivalTime: updatedData.arrivalTime,
       authorizedPassengers: updatedData.authorizedPassengers,
       remarks: updatedData.remarks,
       fileTitle: updatedData.fileTitle,
@@ -124,16 +229,60 @@ async function updateRequest(ticketId, updatedData) {
       driverEmail: driverDetails ? driverDetails.email : null,
     };
 
+    // Update request form first
     const updatedRequest = await ticketData.updateTicket(
       ticketId,
       requestFormData
     );
 
-    //Send email with PDF if the ticket is "Approved"
+    if (!updatedRequest) {
+      throw new Error(`Failed to update request form with ID: ${ticketId}`);
+    }
+
     if (updatedData.status === "Approved") {
+      // ✅ Generate Unique UID for Barcode
+      const uniqueUID = uuidv4();
+
+      // ✅ Insert UID into `tickets` table
+      await ticketData.updateTicketUID(ticketId, uniqueUID, "Approved");
+
+      // ✅ Generate Barcode Image
+      const barcodePath = `${__dirname}/../../Barcodes/${uniqueUID}.png`;
+      await generateBarcodeWithDetails(
+        uniqueUID,
+        {
+          requestedBy: updatedData.requestedBy,
+          driverName: driverDetails?.driverName || "N/A",
+          destination: updatedData.destination,
+          purpose: updatedData.purpose,
+          departureDate: updatedData.departureDate,
+          arrivalDate: updatedData.departureDate,
+          departureTime: updatedData.departureTime,
+          arrivalTime: updatedData.arrivalTime,
+        },
+        barcodePath
+      );
+
+      // ✅ Generate Trip Ticket PDF
+      const travelSummary = {
+        requestedBy: updatedData.requestedBy,
+        driverName: driverDetails?.driverName,
+        destination: updatedData.destination,
+        purpose: updatedData.purpose,
+        departureDate: updatedData.departureDate,
+        arrivalDate: updatedData.arrivalDate,
+        departureTime: updatedData.departureTime,
+        arrivalTime: updatedData.arrivalTime,
+        barcodePath,
+      };
+      const ticketPath = await generateTripTicket.generateTripTicket(
+        travelSummary
+      );
+
+      // ✅ Send Email with PDF and Barcode Attachment
       const recipientEmails = [updatedData?.email, driverDetails?.email].filter(
         Boolean
-      ); // Ensure no null emails
+      );
       const subject = "Trip Ticket Approved";
       const emailBody = `
         <h3>Your trip has been approved</h3>
@@ -142,26 +291,15 @@ async function updateRequest(ticketId, updatedData) {
       `;
 
       try {
-        // ✅ Generate Trip Ticket PDF
-        const ticketPath = await generateTripTicket.generateTripTicket(
-          requestFormData
-        );
-
-        // ✅ Send Email with PDF Attachment
-        await sendEmail(
-          recipientEmails.join(","),
-          subject,
-          emailBody,
-          ticketPath
-        );
-      } catch (pdfError) {
-        console.error(
-          "❌ Error generating or sending Trip Ticket PDF:",
-          pdfError
-        );
+        await sendEmail(recipientEmails.join(","), subject, emailBody, [
+          ticketPath,
+          barcodePath,
+        ]);
+      } catch (emailError) {
+        console.error("❌ Error sending Trip Ticket PDF email:", emailError);
       }
     } else if (updatedData.status === "Rejected") {
-      const recipientEmails = [updatedData?.email].filter(Boolean); // Only send to the requester
+      const recipientEmails = [updatedData?.email].filter(Boolean);
       const subject = "Trip Ticket Rejected";
       const emailBody = `
         <h3>Your trip request has been rejected</h3>
@@ -170,7 +308,6 @@ async function updateRequest(ticketId, updatedData) {
       `;
 
       try {
-        // ✅ Send rejection email
         await sendEmail(recipientEmails.join(","), subject, emailBody);
       } catch (emailError) {
         console.error("❌ Error sending rejection email:", emailError);
@@ -194,10 +331,21 @@ async function getAllOffices() {
   }
 }
 
+async function getAllRequests() {
+  try {
+    const requests = await ticketData.fetchAllRequests(); // Already sorted by 'createdAt'
+    return requests;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
 module.exports = {
   createOffice,
   createDriver,
   submitTicket,
   updateRequest,
   getAllOffices,
+  getAllRequests,
 };

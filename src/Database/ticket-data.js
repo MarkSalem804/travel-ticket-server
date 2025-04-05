@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { v4: uuidv4 } = require("uuid");
 
 async function addOffice(data) {
   try {
@@ -98,28 +99,100 @@ async function addTicket(data) {
   }
 }
 
-async function updateTicket(ticketId, updatedData) {
-  try {
-    const updatedTicket = await prisma.requestform.update({
-      where: {
+async function updateTicket(ticketId, data) {
+  // First, update the requestform
+  const updatedRequestForm = await prisma.requestform.upsert({
+    where: { id: ticketId }, // Use the `id` of requestform to match
+    update: { ...data },
+    create: {
+      ...data,
+      id: ticketId,
+      // Remove generatedUID from here since it belongs in the `tickets` table
+    },
+  });
+
+  // If the status is "Approved", handle the `generatedUID` in the `tickets` table
+  if (data.status === "Approved") {
+    const uniqueUID = uuidv4(); // Generate UID
+
+    // Insert or update the `generatedUID` in the `tickets` table
+    await prisma.tickets.upsert({
+      where: { id: ticketId }, // Assuming `ticketId` corresponds to `id` in `tickets` table
+      update: { generatedUID: uniqueUID }, // Update the generatedUID
+      create: {
         id: ticketId,
+        generatedUID: uniqueUID,
+        status: "Approved", // Ensure that other required fields are created if necessary
       },
-      data: updatedData,
     });
-    return updatedTicket;
+  }
+
+  return updatedRequestForm;
+}
+
+// Create new ticket entry in `tickets` table
+async function createTicket(requestFormId, uniqueUID) {
+  return await prisma.tickets.create({
+    data: {
+      id: requestFormId, // Use the `id` of requestform as foreign key
+      generatedUID: uniqueUID,
+      status: "Approved",
+      created_at: new Date(),
+    },
+  });
+}
+
+// Update or create a ticket if not found (based on `id`)
+async function updateTicketUID(requestFormId, uniqueUID, status) {
+  return await prisma.tickets
+    .update({
+      where: { id: requestFormId }, // Use `id` here
+      data: {
+        generatedUID: uniqueUID,
+        status,
+        updated_at: new Date(),
+      },
+    })
+    .catch(async (error) => {
+      if (error.code === "P2025") {
+        // If no ticket exists, create a new one
+        return await prisma.tickets.create({
+          data: {
+            id: requestFormId, // Use `id` here to link the ticket to the requestform
+            generatedUID: uniqueUID,
+            status,
+            created_at: new Date(),
+          },
+        });
+      }
+      throw error;
+    });
+}
+
+async function fetchAllRequests() {
+  try {
+    const fetchedData = await prisma.requestform.findMany({
+      orderBy: {
+        created_at: "desc", // Assuming your field is named 'createdAt'
+      },
+    });
+    return fetchedData;
   } catch (error) {
-    console.error("Error submitting ticket! ", error);
-    throw new Error("Error submitting ticket");
+    console.error("Error fetching requests! ", error);
+    throw new Error("Error fetching requests");
   }
 }
 
 module.exports = {
+  createTicket,
   addOffice,
   addDriver,
+  fetchAllRequests,
   getDriverByDriverId,
   getOfficeById,
   getAdminEmails,
   addTicket,
   getAllOffices,
   updateTicket,
+  updateTicketUID,
 };

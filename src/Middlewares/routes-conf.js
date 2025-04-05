@@ -1,10 +1,12 @@
 const express = require("express");
 const ticketRouter = require("../Controllers/ticket-controller");
+const userRouter = require("../Users/user-controller");
 
 const Routes = (app, prisma) => {
   const router = express.Router();
 
   router.use("/ticket", ticketRouter);
+  router.use("/user", userRouter);
 
   app.use("/", router);
 

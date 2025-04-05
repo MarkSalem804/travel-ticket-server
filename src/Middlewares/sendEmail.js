@@ -16,23 +16,30 @@ const transporter = nodemailer.createTransport({
  * @param {string} to - Recipient email address
  * @param {string} subject - Email subject
  * @param {string} html - Email content (HTML format)
- * @param {string|null} attachmentPath - Optional file attachment path
+ * @param {string|array|null} attachmentPath - Optional file attachment path(s)
  */
 const sendEmail = async (to, subject, html, attachmentPath = null) => {
   try {
+    const attachments = Array.isArray(attachmentPath)
+      ? attachmentPath.map((pathItem) => ({
+          filename: path.basename(pathItem),
+          path: pathItem,
+        }))
+      : attachmentPath
+      ? [
+          {
+            filename: path.basename(attachmentPath),
+            path: attachmentPath,
+          },
+        ]
+      : [];
+
     const mailOptions = {
       from: `"SDOIC - TRIP TICKET MAIL" <${process.env.EMAIL_USER}>`, // Use company name as sender
       to,
       subject,
       html,
-      attachments: attachmentPath
-        ? [
-            {
-              filename: path.basename(attachmentPath),
-              path: attachmentPath,
-            },
-          ]
-        : [],
+      attachments, // Attach the array of attachments
     };
 
     const info = await transporter.sendMail(mailOptions);

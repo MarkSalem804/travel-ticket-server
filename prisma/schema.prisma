@@ -14,21 +14,32 @@ datasource db {
 }
 
 model users {
-  id          Int      @id @default(autoincrement())
-  username    String   @db.Text
-  password    String   @db.Text
-  email       String   @db.Text
-  contactNo   String   @unique
-  designation String   @db.Text
-  role        String   @db.Text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now())
+  id            Int          @id @default(autoincrement())
+  username      String       @unique
+  password      String
+  email         String       @db.Text
+  contactNo     String
+  designation   designation? @relation(fields: [designationId], references: [id])
+  designationId Int?
+  role          String
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @default(now())
+}
+
+model designation {
+  id    Int     @id @unique @default(autoincrement())
+  name  String
+  users users[]
 }
 
 model tickets {
-  id           Int    @id @default(autoincrement())
-  generatedUID String @unique
-  status       String @db.Text
+  id           Int       @id @default(autoincrement())
+  generatedUID String    @unique
+  status       String    @db.Text
+  updated_at   DateTime? @default(now())
+  created_at   DateTime? @default(now())
+  vehicleOut   DateTime?
+  vehicleIn    DateTime?
 }
 
 model requestform {
@@ -54,6 +65,7 @@ model requestform {
   driverName           String?
   driverContactNo      String?
   driverEmail          String?
+  created_at           DateTime? @default(now())
 }
 
 model offices {
