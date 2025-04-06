@@ -194,11 +194,18 @@ async function updateRequest(ticketId, updatedData) {
   try {
     let driverDetails = null;
     let officeDetails = null;
+    let vehicleDetails = null;
 
     // Fetch driver details
     if (updatedData.driverId) {
       driverDetails = await ticketData.getDriverByDriverId(
         updatedData.driverId
+      );
+    }
+
+    if (updatedData.vehicleId) {
+      vehicleDetails = await ticketData.getVehicleByVehicleId(
+        updatedData.vehicleId
       );
     }
 
@@ -223,6 +230,10 @@ async function updateRequest(ticketId, updatedData) {
       authorizedPassengers: updatedData.authorizedPassengers,
       remarks: updatedData.remarks,
       fileTitle: updatedData.fileTitle,
+      vehicleId: updatedData.vehicleId,
+      vehicleName: vehicleDetails ? vehicleDetails.vehicleName : null,
+      plateNumber: vehicleDetails ? vehicleDetails.plateNo : null,
+      rfid: vehicleDetails ? vehicleDetails.rfid : null,
       driverId: updatedData.driverId,
       driverName: driverDetails ? driverDetails.driverName : null,
       driverContactNo: driverDetails ? driverDetails.contactNo : null,
@@ -253,6 +264,8 @@ async function updateRequest(ticketId, updatedData) {
         {
           requestedBy: updatedData.requestedBy,
           driverName: driverDetails?.driverName || "N/A",
+          vehicleName: vehicleDetails?.vehicleName || "N/A",
+          plateNumber: vehicleDetails?.plateNo,
           destination: updatedData.destination,
           purpose: updatedData.purpose,
           departureDate: updatedData.departureDate,
@@ -333,8 +346,28 @@ async function getAllOffices() {
 
 async function getAllRequests() {
   try {
-    const requests = await ticketData.fetchAllRequests(); // Already sorted by 'createdAt'
+    const requests = await ticketData.fetchAllRequests();
     return requests;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function getAllVehicles() {
+  try {
+    const requests = await ticketData.fetchAllVehicles();
+    return requests;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function getAllDrivers() {
+  try {
+    const drivers = await ticketData.fetchAllDrivers();
+    return drivers;
   } catch (error) {
     console.error("Error!", error);
     throw new Error("Error in Process");
@@ -348,4 +381,6 @@ module.exports = {
   updateRequest,
   getAllOffices,
   getAllRequests,
+  getAllVehicles,
+  getAllDrivers,
 };

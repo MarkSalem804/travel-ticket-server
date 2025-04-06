@@ -33,13 +33,14 @@ model designation {
 }
 
 model tickets {
-  id           Int       @id @default(autoincrement())
-  generatedUID String    @unique
-  status       String    @db.Text
-  updated_at   DateTime? @default(now())
-  created_at   DateTime? @default(now())
-  vehicleOut   DateTime?
-  vehicleIn    DateTime?
+  id            Int       @id @default(autoincrement())
+  requestFormId Int?
+  generatedUID  String    @unique
+  status        String    @db.Text
+  updated_at    DateTime? @default(now())
+  created_at    DateTime? @default(now())
+  vehicleOut    DateTime?
+  vehicleIn     DateTime?
 }
 
 model requestform {
@@ -62,6 +63,10 @@ model requestform {
   fileTitle            String?   @db.Text
   drivers              drivers?  @relation(fields: [driverId], references: [id])
   driverId             Int?
+  vehicleId            Int?
+  vehicleName          String?
+  plateNumber          String?
+  rfid                 String?
   driverName           String?
   driverContactNo      String?
   driverEmail          String?
@@ -80,4 +85,11 @@ model drivers {
   contactNo   String
   email       String
   requestform requestform[]
+}
+
+model vehicles {
+  id          Int     @id @default(autoincrement())
+  vehicleName String? @db.Text
+  rfid        String? @db.Text
+  plateNo     String?
 }

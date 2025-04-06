@@ -52,10 +52,6 @@ ticketRouter.put("/updateRequest/:ticketId", async (req, res) => {
       return res.status(400).json({ error: "Ticket ID is required" });
     }
 
-    console.log("🛠️ Incoming Request Body:", req.body);
-    console.log("🔍 Headers:", req.headers);
-    console.log("📦 Raw Body:", req.body);
-
     const newTicket = await ticketService.updateRequest(ticketId, updatedData);
 
     res.status(201).json(newTicket);
@@ -69,6 +65,26 @@ ticketRouter.get("/getAllOffices", async (req, res) => {
   try {
     const fetchedOffices = await ticketService.getAllOffices();
     res.status(200).json(fetchedOffices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.get("/getAllVehicles", async (req, res) => {
+  try {
+    const fetchedVehicles = await ticketService.getAllVehicles();
+    res.status(200).json(fetchedVehicles);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.get("/getAllDrivers", async (req, res) => {
+  try {
+    const fetchedDrivers = await ticketService.getAllDrivers();
+    res.status(200).json(fetchedDrivers);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });

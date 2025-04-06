@@ -4,8 +4,6 @@ const path = require("path");
 
 // Load the blank trip ticket template
 async function generateTripTicket(data) {
-  console.log("🔍 Incoming Data for Trip Ticket:", data);
-
   // Read the uploaded template
   const templatePath = path.join(
     __dirname,

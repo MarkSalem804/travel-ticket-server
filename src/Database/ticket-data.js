@@ -74,6 +74,31 @@ async function getDriverByDriverId(driverId) {
   }
 }
 
+async function getVehicleByVehicleId(vehicleId) {
+  try {
+    const parsedVehicleId = parseInt(vehicleId);
+    if (!parsedVehicleId) {
+      console.log("required vehicleId");
+    }
+
+    const driver = await prisma.vehicles.findFirst({
+      where: {
+        id: parsedVehicleId,
+      },
+      select: {
+        vehicleName: true,
+        rfid: true,
+        plateNo: true,
+      },
+    });
+
+    return driver;
+  } catch (error) {
+    console.error("Error retrieving driver data! ", error);
+    throw new Error("Error retrieving driver data");
+  }
+}
+
 async function getOfficeById(officeId) {
   try {
     const office = await prisma.offices.findFirst({
@@ -149,6 +174,7 @@ async function updateTicketUID(requestFormId, uniqueUID, status) {
       where: { id: requestFormId }, // Use `id` here
       data: {
         generatedUID: uniqueUID,
+        requestFormId: requestFormId,
         status,
         updated_at: new Date(),
       },
@@ -160,6 +186,7 @@ async function updateTicketUID(requestFormId, uniqueUID, status) {
           data: {
             id: requestFormId, // Use `id` here to link the ticket to the requestform
             generatedUID: uniqueUID,
+            requestFormId: requestFormId,
             status,
             created_at: new Date(),
           },
@@ -183,10 +210,33 @@ async function fetchAllRequests() {
   }
 }
 
+async function fetchAllVehicles() {
+  try {
+    const fetchedData = await prisma.vehicles.findMany();
+    return fetchedData;
+  } catch (error) {
+    console.error("Error fetching vehicles! ", error);
+    throw new Error("Error fetching vehicles");
+  }
+}
+
+async function fetchAllDrivers() {
+  try {
+    const fetchedDrivers = await prisma.drivers.findMany();
+    return fetchedDrivers;
+  } catch (error) {
+    console.error("Error fetching drivers! ", error);
+    throw new Error("Error fetching drivers");
+  }
+}
+
 module.exports = {
+  getVehicleByVehicleId,
   createTicket,
   addOffice,
   addDriver,
+  fetchAllDrivers,
+  fetchAllVehicles,
   fetchAllRequests,
   getDriverByDriverId,
   getOfficeById,
