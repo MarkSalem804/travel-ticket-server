@@ -47,9 +47,6 @@ async function generateBarcodeWithDetails(uniqueUID, details, barcodePath) {
         setZone: false,
       }).toFormat("yyyy-MM-dd");
 
-      console.log(details.arrivalTime);
-      console.log(details.departureTime);
-
       // Format times
       const {
         formattedTime24Hour: formattedDepartureTime24Hr,
@@ -117,6 +114,16 @@ async function generateBarcodeWithDetails(uniqueUID, details, barcodePath) {
   });
 }
 
+async function viewAttachmentById(requestId) {
+  try {
+    const attachment = await ticketData.getAttachmentById(parseInt(requestId));
+    return attachment;
+  } catch (error) {
+    console.error("❌ Error fetching ticket", error);
+    throw new Error("Error fetching ticket");
+  }
+}
+
 async function createOffice(data) {
   try {
     const office = await ticketData.addOffice(data);
@@ -132,6 +139,39 @@ async function createDriver(data) {
     const driver = await ticketData.addDriver(data);
 
     return driver;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function createVehicle(data) {
+  try {
+    const vehicle = await ticketData.addVehicle(data);
+
+    return vehicle;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function updateDriver(driverId, updatedData) {
+  try {
+    const driver = await ticketData.updateDriver(driverId, updatedData);
+
+    return driver;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function updateVehicle(vehicleId, updatedData) {
+  try {
+    const vehicle = await ticketData.updateVehicle(vehicleId, updatedData);
+
+    return vehicle;
   } catch (error) {
     console.error("Error!", error);
     throw new Error("Error in Process");
@@ -214,6 +254,9 @@ async function updateRequest(ticketId, updatedData) {
       officeDetails = await ticketData.getOfficeById(updatedData.officeId);
     }
 
+    const existingTicket = await ticketData.getTicketById(ticketId);
+    const created_at = existingTicket?.created_at || new Date().toISOString();
+
     const requestFormData = {
       status: updatedData.status || "Pending",
       requestedBy: updatedData.requestedBy,
@@ -238,6 +281,7 @@ async function updateRequest(ticketId, updatedData) {
       driverName: driverDetails ? driverDetails.driverName : null,
       driverContactNo: driverDetails ? driverDetails.contactNo : null,
       driverEmail: driverDetails ? driverDetails.email : null,
+      created_at,
     };
 
     // Update request form first
@@ -280,12 +324,16 @@ async function updateRequest(ticketId, updatedData) {
       const travelSummary = {
         requestedBy: updatedData.requestedBy,
         driverName: driverDetails?.driverName,
+        vehicleName: vehicleDetails?.vehicleName,
+        plateNumber: vehicleDetails?.plateNo,
         destination: updatedData.destination,
         purpose: updatedData.purpose,
         departureDate: updatedData.departureDate,
         arrivalDate: updatedData.arrivalDate,
         departureTime: updatedData.departureTime,
         arrivalTime: updatedData.arrivalTime,
+        authorizedPassengers: updatedData.authorizedPassengers,
+        created_at,
         barcodePath,
       };
       const ticketPath = await generateTripTicket.generateTripTicket(
@@ -374,13 +422,39 @@ async function getAllDrivers() {
   }
 }
 
+async function deleteVehicle(vehicleId) {
+  try {
+    const deletedVehicle = await ticketData.deleteVehicle(vehicleId);
+    return deletedVehicle;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
+async function deleteDriver(driverId) {
+  try {
+    const deletedDriver = await ticketData.deleteDriver(driverId);
+    return deletedDriver;
+  } catch (error) {
+    console.error("Error!", error);
+    throw new Error("Error in Process");
+  }
+}
+
 module.exports = {
+  viewAttachmentById,
   createOffice,
   createDriver,
+  createVehicle,
   submitTicket,
+  updateDriver,
+  updateVehicle,
   updateRequest,
   getAllOffices,
   getAllRequests,
   getAllVehicles,
   getAllDrivers,
+  deleteVehicle,
+  deleteDriver,
 };
