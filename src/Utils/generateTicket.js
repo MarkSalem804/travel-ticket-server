@@ -144,6 +144,11 @@ async function generateTripTicket(data) {
   passengersField.setFontSize(9);
   passengersField.enableReadOnly();
 
+  const passengersField2 = form.getTextField("AUTHORIZEDPASSENGERS");
+  passengersField2.setText(data.authorizedPassengers);
+  passengersField2.setFontSize(9);
+  passengersField2.enableReadOnly();
+
   form.flatten();
 
   const outputPath = path.join(
