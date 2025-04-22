@@ -70,6 +70,9 @@ model requestform {
   driverName           String?
   driverContactNo      String?
   driverEmail          String?
+  travelOut            DateTime?
+  travelIn             DateTime?
+  travelStatus         String?
   created_at           DateTime? @default(now())
 }
 

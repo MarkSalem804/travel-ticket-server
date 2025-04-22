@@ -179,6 +179,100 @@ ticketRouter.get("/getAllRequests", async (req, res) => {
   }
 });
 
+ticketRouter.get("/getAllRequestsForToday", async (req, res) => {
+  try {
+    const data = await ticketService.getRequestsForToday();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.post("/getAllRequestsByRFID", async (req, res) => {
+  try {
+    const { rfid } = req.body;
+
+    const data = await ticketService.getRequestsByRFID(rfid.trim());
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.post("/travelOut", async (req, res) => {
+  try {
+    const { rfid, id: requestId } = req.body;
+    console.log(
+      `Received travelOut request with rfid: ${rfid}, requestId: ${requestId}`
+    );
+
+    const request = await ticketService.getRequestByRFIDAndId(rfid, requestId);
+    console.log("Request found:", request);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found." });
+    }
+
+    if (request.travelOut) {
+      return res
+        .status(200)
+        .json({ message: "Travel has already started for this trip." });
+    }
+
+    const updatedRequest = await ticketService.travelOutTime(rfid, requestId);
+    console.log("Updated request after travelOut:", updatedRequest);
+
+    res.status(200).json({
+      message: "Travel out recorded successfully.",
+      data: updatedRequest,
+    });
+  } catch (error) {
+    console.error("Error in /travelOut:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.post("/travelIn", async (req, res) => {
+  try {
+    const { rfid, id: requestId } = req.body;
+    console.log(
+      `Received travelIn request with rfid: ${rfid}, requestId: ${requestId}`
+    );
+
+    const request = await ticketService.getRequestByRFIDAndId(rfid, requestId);
+    console.log("Request found:", request);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found." });
+    }
+
+    if (!request.travelOut) {
+      return res.status(200).json({
+        message: "Travel has not started yet. Please scan out first.",
+      });
+    }
+
+    if (request.travelIn) {
+      return res
+        .status(200)
+        .json({ message: "Travel has already been completed." });
+    }
+
+    const updatedRequest = await ticketService.travelInTime(rfid, requestId);
+    console.log("Updated request after travelIn:", updatedRequest);
+
+    res.status(200).json({
+      message: "Travel in recorded successfully.",
+      data: updatedRequest,
+    });
+  } catch (error) {
+    console.error("Error in /travelIn:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 ticketRouter.delete("/deleteVehicle/:vehicleId", async (req, res) => {
   try {
     const vehicleId = parseInt(req.params.vehicleId);

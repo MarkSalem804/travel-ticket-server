@@ -442,7 +442,106 @@ async function deleteDriver(driverId) {
   }
 }
 
+async function getRequestsForToday() {
+  try {
+    const requests = await ticketData.getAllRequestsByDate();
+    return requests;
+  } catch (error) {
+    console.error("Service Error - getRequestsForToday:", error);
+    throw new Error("Unable to fetch today's requests");
+  }
+}
+
+async function getRequestsByRFID(rfid) {
+  try {
+    if (!rfid) {
+      throw new Error("RFID is required");
+    }
+
+    const requests = await ticketData.getAllRequestsByRFID(rfid);
+    return requests;
+  } catch (error) {
+    console.error("Service error - getRequestsByRFID:", error);
+    throw error;
+  }
+}
+
+async function getRequestByRFIDAndId(rfid, requestId) {
+  try {
+    if (!rfid) {
+      throw new Error("RFID is required");
+    }
+
+    const requests = await ticketData.getRequestByRFIDAndId(rfid, requestId);
+    return requests;
+  } catch (error) {
+    console.error("Service error - getRequestsByRFID:", error);
+    throw error;
+  }
+}
+
+async function travelOutTime(rfid, requestId) {
+  console.log(
+    `travelOutTime called with rfid: ${rfid}, requestId: ${requestId}`
+  );
+
+  try {
+    const request = await ticketData.getRequestByRFIDAndId(rfid, requestId);
+    console.log("Request found:", request);
+
+    if (!request) {
+      throw new Error("Request not found.");
+    }
+
+    if (request.travelOut) {
+      throw new Error("Travel has already started for this trip.");
+    }
+
+    const updatedRequest = await ticketData.updateTravelOut(rfid, requestId);
+    console.log("Updated request after travelOut:", updatedRequest);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error in travelOutTime:", error.message);
+    throw error;
+  }
+}
+
+async function travelInTime(rfid, requestId) {
+  console.log(
+    `travelInTime called with rfid: ${rfid}, requestId: ${requestId}`
+  );
+
+  try {
+    const request = await ticketData.getRequestByRFIDAndId(rfid, requestId);
+    console.log("Request found:", request);
+
+    if (!request) {
+      throw new Error("Request not found.");
+    }
+
+    if (!request.travelOut) {
+      throw new Error("Travel has not started yet. Scan out first.");
+    }
+
+    if (request.travelIn) {
+      throw new Error("Travel has already been completed.");
+    }
+
+    const updatedRequest = await ticketData.updateTravelIn(rfid, requestId);
+    console.log("Updated request after travelIn:", updatedRequest);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error in travelInTime:", error.message);
+    throw error;
+  }
+}
+
 module.exports = {
+  travelOutTime,
+  travelInTime,
+  getRequestsByRFID,
+  getRequestByRFIDAndId,
+  getRequestsForToday,
   viewAttachmentById,
   createOffice,
   createDriver,

@@ -9,7 +9,6 @@ const cors = require("cors");
 const corsOptions = require("./src/Middlewares/CORS-config/cors-options");
 const credentials = require("./src/Middlewares/CORS-config/credentials");
 const prisma = new PrismaClient();
-// const port = process.env.PORT || 8030;
 const port = process.env.PORT || 8050;
 
 app.use(express.json());

@@ -22,7 +22,6 @@ async function getUserById(id) {
         id: parseInt(id),
       },
     });
-
     return fetchedUser;
   } catch (error) {
     console.error("Error fetching Users Data", error);
@@ -70,45 +69,22 @@ async function createUser(data) {
   }
 }
 
-async function updateUser(id, data, office) {
+async function updateUserById(userId, data) {
   try {
-    if (data.editor) {
-      delete data.editor;
-    }
-    if (data.newPassword) {
-      delete data.newPassword;
-    }
+    if (data.editor) delete data.editor;
+    if (data.newPassword) delete data.newPassword;
 
-    let updatedUser;
+    data.updated_at = new Date();
 
-    if (!office) {
-      updatedUser = await prisma.users.update({
-        where: {
-          id: id,
-        },
-        data: {
-          ...data,
-          officeId: null,
-          officeName: null,
-        },
-      });
-    } else {
-      updatedUser = await prisma.users.update({
-        where: {
-          id: id,
-        },
-        data: {
-          ...data,
-          officeId: office.id,
-          officeName: office.officeName,
-        },
-      });
-    }
+    const updatedUser = await prisma.users.update({
+      where: { id: userId },
+      data,
+    });
 
     return updatedUser;
   } catch (error) {
-    console.error("Error creating user", error);
-    throw new Error(error);
+    console.error("Error updating user:", error);
+    throw new Error("Failed to update user");
   }
 }
 
@@ -127,11 +103,41 @@ async function deleteUserById(id) {
   }
 }
 
+async function getAllUsers() {
+  try {
+    const users = await prisma.users.findMany();
+
+    return users;
+  } catch (error) {
+    console.error("Error fetching Users", error);
+    throw new Error(error);
+  }
+}
+
+async function changeUserPassword(userId, newPassword) {
+  try {
+    const updatedUser = await prisma.users.update({
+      where: { id: userId },
+      data: {
+        password: newPassword,
+        updated_at: new Date(),
+      },
+    });
+
+    return updatedUser;
+  } catch (error) {
+    console.error("Error updating user password:", error);
+    throw error;
+  }
+}
+
 module.exports = {
+  changeUserPassword,
+  getAllUsers,
   getUserByUsername,
   getUserById,
   getDesignationByID,
   createUser,
-  updateUser,
+  updateUserById,
   deleteUserById,
 };

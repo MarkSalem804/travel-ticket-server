@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { v4: uuidv4 } = require("uuid");
+const { startOfDay, endOfDay } = require("date-fns");
 
 async function getAttachmentById(requestId) {
   try {
@@ -322,7 +323,193 @@ async function deleteDriver(driverId) {
   }
 }
 
+async function getAllRequestsByDate() {
+  try {
+    const today = new Date();
+
+    const data = await prisma.requestform.findMany({
+      where: {
+        departureTime: {
+          gte: startOfDay(today),
+          lte: endOfDay(today),
+        },
+      },
+      orderBy: {
+        departureTime: "asc",
+      },
+      include: {
+        office: true,
+        drivers: true,
+      },
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching today's requests:", error);
+    throw error;
+  }
+}
+
+async function getAllRequestsByRFID(rfid) {
+  try {
+    const today = new Date();
+
+    const data = await prisma.requestform.findMany({
+      where: {
+        rfid,
+        departureDate: {
+          gte: startOfDay(today),
+          lte: endOfDay(today),
+        },
+      },
+      include: {
+        office: true,
+        drivers: true,
+      },
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching requests by RFID:", error);
+    throw error;
+  }
+}
+
+async function travelOutTime(rfid, requestId) {
+  try {
+    const updated = await prisma.requestform.updateMany({
+      where: {
+        id: requestId,
+        rfid: rfid,
+        travelOut: null,
+        departureDate: {
+          gte: startOfDay(new Date()),
+          lte: endOfDay(new Date()),
+        },
+      },
+      data: {
+        travelOut: new Date().toISOString(),
+      },
+    });
+
+    return updated;
+  } catch (error) {
+    console.error("Error setting travelOut time:", error);
+    throw error;
+  }
+}
+
+async function travelInTime(rfid, requestId) {
+  try {
+    const updated = await prisma.requestform.updateMany({
+      where: {
+        id: requestId,
+        rfid: rfid,
+        travelOut: {
+          not: null,
+        },
+        travelIn: null,
+        departureDate: {
+          gte: startOfDay(new Date()),
+          lte: endOfDay(new Date()),
+        },
+      },
+      data: {
+        travelIn: new Date().toISOString(),
+        travelStatus: "Completed",
+      },
+    });
+
+    return updated;
+  } catch (error) {
+    console.error("Error setting travelIn time:", error);
+    throw error;
+  }
+}
+
+async function updateTravelOut(rfid, requestId) {
+  console.log(
+    `updateTravelOut called with rfid: ${rfid}, requestId: ${requestId}`
+  );
+
+  const existingRequest = await prisma.requestform.findFirst({
+    where: { id: requestId, rfid },
+  });
+
+  console.log("Existing request:", existingRequest);
+
+  if (!existingRequest) {
+    throw new Error("Request not found.");
+  }
+
+  if (existingRequest.travelOut) {
+    throw new Error("Travel has already started for this trip.");
+  }
+
+  console.log("Updating travelOut for requestId:", requestId);
+  return prisma.requestform.update({
+    where: { id: requestId },
+    data: {
+      travelOut: new Date().toISOString(),
+      travelStatus: "On Going",
+    },
+  });
+}
+
+async function updateTravelIn(rfid, requestId) {
+  console.log(
+    `updateTravelIn called with rfid: ${rfid}, requestId: ${requestId}`
+  );
+
+  const existingRequest = await prisma.requestform.findFirst({
+    where: { id: requestId, rfid },
+  });
+
+  console.log("Existing request:", existingRequest);
+
+  if (!existingRequest) {
+    throw new Error("Request not found.");
+  }
+
+  if (!existingRequest.travelOut) {
+    throw new Error("Travel has not started yet. Scan out first.");
+  }
+
+  if (existingRequest.travelIn) {
+    throw new Error("Travel has already been completed.");
+  }
+
+  console.log("Updating travelIn for requestId:", requestId);
+  return prisma.requestform.update({
+    where: { id: requestId },
+    data: {
+      travelIn: new Date().toISOString(),
+      travelStatus: "Completed",
+    },
+  });
+}
+
+async function getRequestByRFIDAndId(rfid, requestId) {
+  try {
+    return await prisma.requestform.findFirst({
+      where: {
+        id: requestId,
+        rfid,
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
 module.exports = {
+  getRequestByRFIDAndId,
+  updateTravelOut,
+  updateTravelIn,
+  travelOutTime,
+  travelInTime,
+  getAllRequestsByRFID,
+  getAllRequestsByDate,
   updateVehicle,
   getTicketById,
   getAttachmentById,
