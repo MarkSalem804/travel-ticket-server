@@ -1,9 +1,34 @@
 const express = require("express");
 const upload = require("../Middlewares/upload");
+const verifyToken = require("../Utils/jwt");
 const ticketRouter = express.Router();
 const ticketService = require("../Services/ticket-service");
 const path = require("path");
 const fs = require("fs");
+const { emitEvent } = require("../Middlewares/socketio");
+
+ticketRouter.post("/urgentTap", async (req, res) => {
+  try {
+    const { rfid } = req.body;
+
+    if (!rfid) {
+      return res.status(400).json({ message: "RFID is required" });
+    }
+
+    const result = await ticketService.urgentTrip(rfid);
+
+    res.status(200).json({
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("Error in urgentTap route:", error);
+    res.status(500).json({
+      message: "Error processing urgent trip tap",
+      error: error.message,
+    });
+  }
+});
 
 ticketRouter.get("/viewAttachment/:requestId", async (req, res) => {
   try {
@@ -24,7 +49,6 @@ ticketRouter.get("/viewAttachment/:requestId", async (req, res) => {
       return res.status(404).json({ error: "File does not exist" });
     }
 
-    // Set headers for inline display
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${ticket.fileTitle}"`
@@ -149,6 +173,16 @@ ticketRouter.get("/getAllOffices", async (req, res) => {
   }
 });
 
+ticketRouter.get("/getAllUrgentTrips", async (req, res) => {
+  try {
+    const fetchedTrips = await ticketService.getAllUrgentTrips();
+    res.status(200).json(fetchedTrips);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 ticketRouter.get("/getAllVehicles", async (req, res) => {
   try {
     const fetchedVehicles = await ticketService.getAllVehicles();
@@ -189,6 +223,18 @@ ticketRouter.get("/getAllRequestsForToday", async (req, res) => {
   }
 });
 
+ticketRouter.post("/getRequestByRFIDAndId", async (req, res) => {
+  try {
+    const { rfid, requestId } = req.body;
+
+    const data = await ticketService.getRequestByRFIDAndId(rfid, requestId);
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 ticketRouter.post("/getAllRequestsByRFID", async (req, res) => {
   try {
     const { rfid } = req.body;
@@ -204,12 +250,8 @@ ticketRouter.post("/getAllRequestsByRFID", async (req, res) => {
 ticketRouter.post("/travelOut", async (req, res) => {
   try {
     const { rfid, id: requestId } = req.body;
-    console.log(
-      `Received travelOut request with rfid: ${rfid}, requestId: ${requestId}`
-    );
 
     const request = await ticketService.getRequestByRFIDAndId(rfid, requestId);
-    console.log("Request found:", request);
 
     if (!request) {
       return res.status(404).json({ message: "Request not found." });
@@ -222,7 +264,8 @@ ticketRouter.post("/travelOut", async (req, res) => {
     }
 
     const updatedRequest = await ticketService.travelOutTime(rfid, requestId);
-    console.log("Updated request after travelOut:", updatedRequest);
+
+    emitEvent("travel-updated", { id: requestId, type: "out", updatedRequest });
 
     res.status(200).json({
       message: "Travel out recorded successfully.",
@@ -263,6 +306,8 @@ ticketRouter.post("/travelIn", async (req, res) => {
     const updatedRequest = await ticketService.travelInTime(rfid, requestId);
     console.log("Updated request after travelIn:", updatedRequest);
 
+    emitEvent("travel-updated", { id: requestId, type: "in", updatedRequest });
+
     res.status(200).json({
       message: "Travel in recorded successfully.",
       data: updatedRequest,
@@ -273,29 +318,37 @@ ticketRouter.post("/travelIn", async (req, res) => {
   }
 });
 
-ticketRouter.delete("/deleteVehicle/:vehicleId", async (req, res) => {
-  try {
-    const vehicleId = parseInt(req.params.vehicleId);
+ticketRouter.delete(
+  "/deleteVehicle/:vehicleId",
+  verifyToken.verifyAccessToken,
+  async (req, res) => {
+    try {
+      const vehicleId = parseInt(req.params.vehicleId);
 
-    const deletedData = await ticketService.deleteVehicle(vehicleId);
-    res.status(200).json(deletedData);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+      const deletedData = await ticketService.deleteVehicle(vehicleId);
+      res.status(200).json(deletedData);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   }
-});
+);
 
-ticketRouter.delete("/deleteDriver/:driverId", async (req, res) => {
-  try {
-    const driverId = parseInt(req.params.driverId);
+ticketRouter.delete(
+  "/deleteDriver/:driverId",
+  verifyToken.verifyAccessToken,
+  async (req, res) => {
+    try {
+      const driverId = parseInt(req.params.driverId);
 
-    const deletedData = await ticketService.deleteDriver(driverId);
-    res.status(200).json(deletedData);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+      const deletedData = await ticketService.deleteDriver(driverId);
+      res.status(200).json(deletedData);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   }
-});
+);
 
 // Helper to get MIME type
 function getMimeType(filename) {

@@ -466,13 +466,13 @@ async function getRequestsByRFID(rfid) {
   }
 }
 
-async function getRequestByRFIDAndId(rfid, requestId) {
+async function getRequestByRFIDAndId(rfid, id) {
   try {
     if (!rfid) {
       throw new Error("RFID is required");
     }
 
-    const requests = await ticketData.getRequestByRFIDAndId(rfid, requestId);
+    const requests = await ticketData.getRequestByRFIDAndId(rfid, id);
     return requests;
   } catch (error) {
     console.error("Service error - getRequestsByRFID:", error);
@@ -536,7 +536,51 @@ async function travelInTime(rfid, requestId) {
   }
 }
 
+// async function urgentOut(rfid) {
+//   try {
+//     const result = ticketData.urgentTripOut(rfid);
+//     return result;
+//   } catch (error) {
+//     console.error("Error in urgentOut service:", error);
+//     throw error;
+//   }
+// }
+
+// async function urgentIn(rfid) {
+//   try {
+//     const result = await ticketData.urgentTripIn(rfid);
+//     return result;
+//   } catch (error) {
+//     console.error("Error in urgentIn service:", error);
+//     throw error;
+//   }
+// }
+
+async function urgentTrip(rfid) {
+  try {
+    const result = await ticketData.urgentTap(rfid);
+    return result;
+  } catch (error) {
+    console.error("Error in urgentTap service:", error);
+    throw error;
+  }
+}
+
+async function getAllUrgentTrips() {
+  try {
+    const result = await ticketData.getAllUrgents();
+    return result;
+  } catch (error) {
+    console.error("Error in urgentTap service:", error);
+    throw error;
+  }
+}
+
 module.exports = {
+  // urgentOut,
+  // urgentIn,
+  getAllUrgentTrips,
+  urgentTrip,
   travelOutTime,
   travelInTime,
   getRequestsByRFID,

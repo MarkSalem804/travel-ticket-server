@@ -24,6 +24,7 @@ model users {
   role          String
   created_at    DateTime     @default(now())
   updated_at    DateTime     @default(now())
+  refreshToken  String?      @db.Text
 }
 
 model designation {
@@ -94,5 +95,18 @@ model vehicles {
   id          Int     @id @default(autoincrement())
   vehicleName String? @db.Text
   rfid        String? @db.Text
+  type        String?
+  owner       String?
+  assigned    String?
   plateNo     String?
+}
+
+model urgentTrips {
+  id          Int       @id @default(autoincrement())
+  rfid        String?
+  driverName  String?
+  plateNo     String?
+  vehicleName String?
+  departure   DateTime?
+  arrival     DateTime?
 }

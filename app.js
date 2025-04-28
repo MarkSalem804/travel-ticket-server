@@ -1,8 +1,12 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
+const cookieParser = require("cookie-parser");
 const Routes = require("./src/Middlewares/routes-conf");
 const clear = require("clear");
-require("dotenv").config();
+const dotenv = require("dotenv");
+const { initSocket } = require("./src/Middlewares/socketio");
+
+dotenv.config();
 
 const app = express();
 const cors = require("cors");
@@ -13,6 +17,7 @@ const port = process.env.PORT || 8050;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Handle options credentials check - before CORS!
 // and fetch cookies credentials requirement
@@ -22,7 +27,7 @@ app.use(credentials);
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
-  req.prisma = prisma;
+  // req.prisma = prisma;
   next();
 });
 
