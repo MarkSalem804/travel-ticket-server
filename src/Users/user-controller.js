@@ -164,21 +164,17 @@ userRouter.patch("/changePassword/:id", async (req, res) => {
 
 userRouter.put("/UpdateUser/:id", async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
-    const userData = req.body;
-
-    const updatedUser = await userService.updateUser(userId, userData);
-
-    res.status(200).json({
-      message: "User updated successfully",
-      user: updatedUser,
-    });
+    const updatedUser = await userService.updateUser(
+      parseInt(req.params.id),
+      req.body
+    );
+    return res
+      .status(200)
+      .json({ message: "User updated successfully", user: updatedUser });
   } catch (error) {
-    console.error("Route: Failed to update user", error);
-    res.status(500).json({
-      message: "Failed to update user",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "Failed to update user", error: error.message });
   }
 });
 

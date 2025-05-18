@@ -10,6 +10,7 @@ const sendEmail = require("../Middlewares/sendEmail");
 const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
+const ExcelJS = require("exceljs");
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -34,6 +35,82 @@ function formatTimeRaw(timeString) {
     formattedTime24Hour,
     formattedTime12Hour,
   };
+}
+
+async function exportTravelReport(startDate, endDate) {
+  try {
+    const reportData = await ticketData.exportReportData(startDate, endDate);
+
+    // Create a new workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Approved_Travels");
+
+    // Define columns with headers and filtering
+    worksheet.columns = [
+      { header: "REQUESTOR", key: "requestedBy", width: 20 },
+      { header: "OFFICE", key: "requestorOffice", width: 30 },
+      { header: "DESIGNATION", key: "designation", width: 20 },
+      { header: "DESTINATION", key: "destination", width: 20 },
+      { header: "PURPOSE", key: "purpose", width: 25 },
+      { header: "DEPARTURE", key: "travelOut", width: 20 },
+      { header: "ARRIVAL", key: "travelIn", width: 20 },
+      {
+        header: "PASSENGERS",
+        key: "authorizedPassengers",
+        width: 50,
+      },
+      { header: "APPLICATION STATUS", key: "status", width: 15 },
+      { header: "TRAVEL STATUS", key: "travelStatus", width: 15 },
+    ];
+
+    // Style header row (light green background and white text)
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "6FAF6B" }, // Light Green color
+      };
+      cell.font = { color: { argb: "FFFFFF" }, bold: true }; // White font color and bold text
+    });
+
+    // Apply autoFilter to all columns
+    worksheet.autoFilter = "A1:J1";
+
+    // Add rows
+    reportData.forEach((item) => {
+      worksheet.addRow({
+        requestedBy: item.requestedBy,
+        requestorOffice: item.requestorOffice,
+        designation: item.designation,
+        destination: item.destination,
+        purpose: item.purpose,
+        travelOut: item.travelOut
+          ? new Date(item.travelOut).toLocaleString()
+          : "",
+        travelIn: item.travelIn ? new Date(item.travelIn).toLocaleString() : "",
+        authorizedPassengers: item.authorizedPassengers,
+        status: item.status,
+        travelStatus: item.travelStatus,
+      });
+    });
+
+    // Return workbook as a buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split("T")[0];
+    const filename = `Travel_Report_${currentDate}.xlsx`;
+
+    return {
+      buffer,
+      filename,
+      contentType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    };
+  } catch (error) {
+    console.error("Service error while exporting travel report:", error);
+    throw error;
+  }
 }
 
 async function generateBarcodeWithDetails(uniqueUID, details, barcodePath) {
@@ -199,6 +276,35 @@ async function submitTicket(data) {
       );
     };
 
+    let driverId = null;
+    let driverName = null;
+    let driverContactNo = null;
+    let driverEmail = null;
+    let vehicleId = null;
+    let vehicleName = null;
+    let plateNumber = null;
+    let rfid = null;
+
+    if (data.email === "maricel.aureo@deped.gov.ph") {
+      vehicleId = 4;
+      vehicleName = "TOYOTA INNOVA";
+      plateNumber = "SLG 723";
+      rfid = "0005633227";
+      driverId = 6;
+      driverName = "Roberto D. Baarde Jr";
+      driverContactNo = "09065263190";
+      driverEmail = "robertobaarde@yahoo.com.ph";
+    } else if (driverDetails) {
+      vehicleId = data.vehicleId || null;
+      vehicleName = data.vehicleName || null;
+      plateNumber = data.plateNumber || null;
+      rfid = data.rfid || null;
+      driverId = driverDetails ? parseInt(driverDetails.driverId) : null;
+      driverName = driverDetails ? driverDetails.driverName : null;
+      driverContactNo = driverDetails ? driverDetails.contactNo : null;
+      driverEmail = driverDetails ? driverDetails.driverEmail : null;
+    }
+
     const requestFormData = {
       status: data.status || "Pending",
       requestedBy: data.requestedBy,
@@ -216,10 +322,14 @@ async function submitTicket(data) {
       authorizedPassengers: data.authorizedPassengers,
       remarks: data.remarks,
       fileTitle: data.fileTitle || null,
-      driverId: parseInt(data.driverId) || null,
-      driverName: driverDetails ? driverDetails.driverName : null,
-      driverContactNo: driverDetails ? driverDetails.contactNo : null,
-      driverEmail: driverDetails ? driverDetails.email : null,
+      vehicleId,
+      vehicleName,
+      plateNumber,
+      rfid,
+      driverId,
+      driverName,
+      driverContactNo,
+      driverEmail,
     };
 
     const submittedRequest = await ticketData.addTicket(requestFormData);
@@ -307,6 +417,7 @@ async function updateRequest(ticketId, updatedData) {
         uniqueUID,
         {
           requestedBy: updatedData.requestedBy,
+          email: updatedData.email,
           driverName: driverDetails?.driverName || "N/A",
           vehicleName: vehicleDetails?.vehicleName || "N/A",
           plateNumber: vehicleDetails?.plateNo,
@@ -323,6 +434,7 @@ async function updateRequest(ticketId, updatedData) {
       // ✅ Generate Trip Ticket PDF
       const travelSummary = {
         requestedBy: updatedData.requestedBy,
+        email: updatedData.email,
         driverName: driverDetails?.driverName,
         vehicleName: vehicleDetails?.vehicleName,
         plateNumber: vehicleDetails?.plateNo,
@@ -392,9 +504,9 @@ async function getAllOffices() {
   }
 }
 
-async function getAllRequests() {
+async function getAllRequests(startDate, endDate) {
   try {
-    const requests = await ticketData.fetchAllRequests();
+    const requests = await ticketData.fetchAllRequests(startDate, endDate);
     return requests;
   } catch (error) {
     console.error("Error!", error);
@@ -566,6 +678,16 @@ async function urgentTrip(rfid) {
   }
 }
 
+async function urgentTripForm(rfid) {
+  try {
+    const result = await ticketData.urgentTapToRequestForm(rfid);
+    return result;
+  } catch (error) {
+    console.error("Error in urgentTapForm service:", error);
+    throw error;
+  }
+}
+
 async function getAllUrgentTrips() {
   try {
     const result = await ticketData.getAllUrgents();
@@ -579,6 +701,8 @@ async function getAllUrgentTrips() {
 module.exports = {
   // urgentOut,
   // urgentIn,
+  urgentTripForm,
+  exportTravelReport,
   getAllUrgentTrips,
   urgentTrip,
   travelOutTime,

@@ -92,21 +92,26 @@ model drivers {
 }
 
 model vehicles {
-  id          Int     @id @default(autoincrement())
-  vehicleName String? @db.Text
-  rfid        String? @db.Text
+  id          Int           @id @default(autoincrement())
+  vehicleName String?       @db.Text
+  rfid        String?       @db.Text
   type        String?
   owner       String?
   assigned    String?
   plateNo     String?
+  urgentTrips urgentTrips[]
 }
 
 model urgentTrips {
   id          Int       @id @default(autoincrement())
   rfid        String?
   driverName  String?
+  ownerName   String?
   plateNo     String?
   vehicleName String?
+  type        String?
   departure   DateTime?
   arrival     DateTime?
+  vehicles    vehicles? @relation(fields: [vehiclesId], references: [id])
+  vehiclesId  Int?
 }

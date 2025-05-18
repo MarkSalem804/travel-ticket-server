@@ -32,6 +32,11 @@ function formatTimeRaw(timeString) {
   };
 }
 
+function truncateWithEllipsis(text, maxLength) {
+  if (!text) return "";
+  return text.length > maxLength ? text.slice(0, maxLength - 3) + "..." : text;
+}
+
 // Load the blank trip ticket template
 async function generateTripTicket(data) {
   console.log(data);
@@ -43,7 +48,22 @@ async function generateTripTicket(data) {
     "TRIP-TICKET SoftCopy.pdf"
   );
 
-  const templateBytes = fs.readFileSync(templatePath);
+  const templatePath2 = path.join(
+    __dirname,
+    "../../templates",
+    "SDOIC - ASDS - Trip approval.pdf"
+  );
+
+  const specialEmails = [
+    "maricel.aureo@deped.gov.ph",
+    "ronnie.yohan@deped.gov.ph",
+  ];
+
+  const selectedTemplatePath = specialEmails.includes(data.email)
+    ? templatePath2
+    : templatePath;
+
+  const templateBytes = fs.readFileSync(selectedTemplatePath);
 
   // Load the existing PDF
   const pdfDoc = await PDFDocument.load(templateBytes);
@@ -110,12 +130,12 @@ async function generateTripTicket(data) {
   createdAtField.enableReadOnly();
 
   const purposeField = form.getTextField("PURPOSE");
-  purposeField.setText(data.purpose);
+  purposeField.setText(truncateWithEllipsis(data.purpose, 125));
   purposeField.setFontSize(9);
   purposeField.enableReadOnly();
 
   const destinationField = form.getTextField("DESTINATION");
-  destinationField.setText(data.destination);
+  destinationField.setText(truncateWithEllipsis(data.destination, 50));
   destinationField.setFontSize(9);
   destinationField.enableReadOnly();
 
@@ -140,12 +160,14 @@ async function generateTripTicket(data) {
   arrivalTimeField.enableReadOnly();
 
   const passengersField = form.getTextField("PASSENGERS");
-  passengersField.setText(data.authorizedPassengers);
+  passengersField.setText(truncateWithEllipsis(data.authorizedPassengers, 125));
   passengersField.setFontSize(9);
   passengersField.enableReadOnly();
 
   const passengersField2 = form.getTextField("AUTHORIZEDPASSENGERS");
-  passengersField2.setText(data.authorizedPassengers);
+  passengersField2.setText(
+    truncateWithEllipsis(data.authorizedPassengers, 125)
+  );
   passengersField2.setFontSize(9);
   passengersField2.enableReadOnly();
 

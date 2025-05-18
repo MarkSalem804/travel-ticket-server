@@ -3,12 +3,38 @@ const prisma = new PrismaClient();
 const { v4: uuidv4 } = require("uuid");
 const { startOfDay, endOfDay } = require("date-fns");
 const { getTodayDateRange } = require("../Utils/dateconf");
+const { convertPHToUtcDate } = require("../Utils/convertUtc");
 const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+async function exportReportData(startDate, endDate) {
+  try {
+    const whereClause = {
+      travelStatus: "Completed",
+    };
+
+    // Only add date filtering if both dates are provided
+    if (startDate && endDate) {
+      whereClause.departureDate = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    const data = await prisma.requestform.findMany({
+      where: whereClause,
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to retrieve report data:", error);
+    throw error;
+  }
+}
 
 async function getAttachmentById(requestId) {
   try {
@@ -257,13 +283,30 @@ async function updateTicketUID(requestFormId, uniqueUID, status) {
     });
 }
 
-async function fetchAllRequests() {
+async function fetchAllRequests(startDate, endDate) {
   try {
+    const whereClause = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Always include the entire end day
+      end.setHours(23, 59, 59, 999);
+
+      whereClause.departureDate = {
+        gte: start,
+        lte: end,
+      };
+    }
+
     const fetchedData = await prisma.requestform.findMany({
+      where: whereClause,
       orderBy: {
-        created_at: "desc", // Assuming your field is named 'createdAt'
+        departureDate: "desc",
       },
     });
+
     return fetchedData;
   } catch (error) {
     console.error("Error fetching requests! ", error);
@@ -330,9 +373,71 @@ async function deleteDriver(driverId) {
   }
 }
 
+async function getAllUrgents() {
+  try {
+    const { start, end } = getTodayDateRange();
+
+    const data = await prisma.urgentTrips.findMany({
+      where: {
+        departure: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        vehicles: true,
+      },
+      orderBy: {
+        departure: "desc",
+      },
+    });
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// async function getAllRequestsByDate() {
+//   try {
+//     const { start, end } = getTodayDateRange(); // Get local start and end
+
+//     // Convert local start and end to UTC manually
+//     const startUtc = new Date(
+//       start.getTime() - start.getTimezoneOffset() * 60000
+//     );
+//     const endUtc = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
+
+//     console.log("startUtc:", startUtc.toISOString());
+//     console.log("endUtc:", endUtc.toISOString());
+
+//     const data = await prisma.requestform.findMany({
+//       where: {
+//         departureTime: {
+//           gte: startUtc,
+//           lt: endUtc,
+//         },
+//       },
+//       orderBy: {
+//         departureTime: "desc",
+//       },
+//       include: {
+//         office: true,
+//         drivers: true,
+//       },
+//     });
+
+//     console.log("Fetched data:", data);
+//     return data;
+//   } catch (error) {
+//     console.error("Error fetching today's requests:", error);
+//     throw error;
+//   }
+// }
+
 async function getAllRequestsByDate() {
   try {
-    const { start, end } = getTodayDateRange(); // Get local start and end
+    const { start, end } = getTodayDateRange(); // local start/end
 
     // Convert local start and end to UTC manually
     const startUtc = new Date(
@@ -343,15 +448,23 @@ async function getAllRequestsByDate() {
     console.log("startUtc:", startUtc.toISOString());
     console.log("endUtc:", endUtc.toISOString());
 
+    // Query where either departureTime or travelOut is in the range
     const data = await prisma.requestform.findMany({
       where: {
-        departureTime: {
-          gte: startUtc,
-          lt: endUtc,
-        },
-      },
-      orderBy: {
-        departureTime: "asc",
+        OR: [
+          {
+            departureTime: {
+              gte: startUtc,
+              lt: endUtc,
+            },
+          },
+          {
+            travelOut: {
+              gte: startUtc,
+              lt: endUtc,
+            },
+          },
+        ],
       },
       include: {
         office: true,
@@ -359,8 +472,15 @@ async function getAllRequestsByDate() {
       },
     });
 
-    console.log("Fetched data:", data);
-    return data;
+    // Sort by departureTime if exists, else travelOut, descending
+    const sortedData = data.sort((a, b) => {
+      const aDate = a.departureTime ?? a.travelOut;
+      const bDate = b.departureTime ?? b.travelOut;
+      return bDate - aDate;
+    });
+
+    console.log("Fetched and sorted data:", sortedData);
+    return sortedData;
   } catch (error) {
     console.error("Error fetching today's requests:", error);
     throw error;
@@ -545,91 +665,6 @@ async function getRequestByRFIDAndId(rfid, requestId) {
   }
 }
 
-// when rfid tapped on reader first time (out)
-// async function urgentTripOut(rfid) {
-//   try {
-//     if (rfid) {
-//       const vehicle = await prisma.vehicles.findFirst({
-//         where: { rfid },
-//         select: {
-//           assigned: true,
-//           plateNo: true,
-//           type: true,
-//           vehicleName: true,
-//         },
-//       });
-//       if (vehicle) {
-//         // Create a new urgent trip with DEPARTURE time
-//         const newUrgentTrip = await prisma.urgentTrips.create({
-//           data: {
-//             rfid: rfid,
-//             driverName: vehicle.assigned, // assigned from vehicles table
-//             plateNo: vehicle.plateNo,
-//             vehicleName: vehicle.vehicleName,
-//             departure: new Date(), // set departure now
-//             arrival: null, // arrival empty for now
-//           },
-//         });
-
-//         return newUrgentTrip;
-//       } else {
-//         throw new Error("Vehicle not found for the given RFID");
-//       }
-//     }
-//   } catch (error) {
-//     console.error("Error in urgentTripOut:", error);
-//     throw error;
-//   }
-// }
-
-// When RFID is detected for arrival (in)
-// async function urgentTripIn(rfid) {
-//   try {
-//     if (rfid) {
-//       // Find the latest urgentTrip for this RFID where arrival is still NULL
-//       const existingTrip = await prisma.urgentTrips.findFirst({
-//         where: {
-//           rfid: rfid,
-//           arrival: null,
-//         },
-//         orderBy: {
-//           departure: "desc", // just in case, get the latest departure
-//         },
-//       });
-
-//       if (existingTrip) {
-//         // Update the arrival time
-//         const updatedTrip = await prisma.urgentTrips.update({
-//           where: {
-//             id: existingTrip.id,
-//           },
-//           data: {
-//             arrival: new Date(),
-//           },
-//         });
-
-//         return updatedTrip;
-//       } else {
-//         throw new Error(
-//           "No ongoing urgent trip found for this RFID to set arrival"
-//         );
-//       }
-//     }
-//   } catch (error) {
-//     console.error("Error in urgentTripIn:", error);
-//     throw error;
-//   }
-// }
-
-async function getAllUrgents() {
-  try {
-    const data = await prisma.urgentTrips.findMany();
-    return data;
-  } catch (error) {
-    throw error;
-  }
-}
-
 async function urgentTap(rfid) {
   try {
     const COOLDOWN_SECONDS = 5; // 5 seconds cooldown
@@ -678,6 +713,8 @@ async function urgentTap(rfid) {
         plateNo: true,
         type: true,
         vehicleName: true,
+        type: true,
+        owner: true,
       },
     });
 
@@ -685,12 +722,20 @@ async function urgentTap(rfid) {
       throw new Error("Vehicle not found for the given RFID");
     }
 
+    if (vehicle.type === "Government (Red Plate)") {
+      const err = new Error("Only for Private Vehicles");
+      err.code = "FORBIDDEN_VEHICLE_TYPE";
+      throw err;
+    }
+
     const newUrgentTrip = await prisma.urgentTrips.create({
       data: {
         rfid: rfid,
         driverName: vehicle.assigned,
+        ownerName: vehicle.owner,
         plateNo: vehicle.plateNo,
         vehicleName: vehicle.vehicleName,
+        type: vehicle.type,
         departure: now,
         arrival: null,
       },
@@ -706,11 +751,112 @@ async function urgentTap(rfid) {
   }
 }
 
+async function urgentTapToRequestForm(rfid) {
+  try {
+    const COOLDOWN_SECONDS = 5;
+    const now = new Date();
+
+    // 1. Find the latest request form for this RFID
+    const latestRequest = await prisma.requestform.findFirst({
+      where: { rfid },
+      orderBy: { travelOut: "desc" },
+    });
+
+    if (latestRequest) {
+      const lastEventTime = latestRequest.travelIn
+        ? latestRequest.travelIn
+        : latestRequest.travelOut;
+      const secondsSinceLastEvent =
+        (now.getTime() - new Date(lastEventTime).getTime()) / 1000;
+
+      if (secondsSinceLastEvent < COOLDOWN_SECONDS) {
+        throw new Error(
+          `Please wait before tapping again. Cooldown active (${COOLDOWN_SECONDS} seconds).`
+        );
+      }
+
+      if (!latestRequest.travelIn) {
+        // Update travelIn (Arrival)
+        const updatedRequest = await prisma.requestform.update({
+          where: { id: latestRequest.id },
+          data: {
+            travelIn: now,
+            travelStatus: "Completed",
+          },
+        });
+
+        return {
+          message: "Request Form IN (Arrival) processed successfully",
+          data: updatedRequest,
+        };
+      }
+    }
+
+    // 2. No ongoing trip → Create a new requestform entry
+    const vehicle = await prisma.vehicles.findFirst({
+      where: { rfid },
+      select: {
+        id: true,
+        assigned: true,
+        plateNo: true,
+        type: true,
+        vehicleName: true,
+        owner: true,
+        // contactNo: true,
+        // email: true,
+        // officeId: true,
+      },
+    });
+
+    if (!vehicle) {
+      throw new Error("Vehicle not found for the given RFID");
+    }
+
+    if (vehicle.type === "Employee (Private)") {
+      const err = new Error("Only for Governement/Requested Vehicles");
+      err.code = "FORBIDDEN_VEHICLE_TYPE";
+      throw err;
+    }
+
+    const newRequest = await prisma.requestform.create({
+      data: {
+        rfid: rfid,
+        requestedBy: vehicle.owner || "Unknown",
+        officeId: vehicle.officeId || 1, // fallback if officeId is null
+        requestorOffice: "N/A",
+        designation: "N/A",
+        destination: "N/A",
+        purpose: "Urgent",
+        vehicleId: vehicle.id,
+        driverName: vehicle.assigned,
+        driverContactNo: vehicle.contactNo || "N/A",
+        driverEmail: vehicle.email || "N/A",
+        plateNumber: vehicle.plateNo,
+        vehicleName: vehicle.vehicleName,
+        travelOut: now,
+        travelIn: null,
+        travelStatus: "Ongoing",
+        status: "Urgent",
+      },
+    });
+
+    return {
+      message: "Request Form OUT (Departure) processed successfully",
+      data: newRequest,
+    };
+  } catch (error) {
+    console.error("Error in urgentTapToRequestForm:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   // urgentTripOut,
   // urgentTripIn,
+  exportReportData,
   getAllUrgents,
   urgentTap,
+  urgentTapToRequestForm,
   getRequestByRFIDAndId,
   updateTravelOut,
   updateTravelIn,
