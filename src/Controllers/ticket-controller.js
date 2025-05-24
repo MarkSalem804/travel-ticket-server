@@ -55,12 +55,12 @@ ticketRouter.post("/urgentTap", async (req, res) => {
   } catch (error) {
     console.error("Error in urgentTap route:", error);
 
-    if (error.code === "FORBIDDEN_VEHICLE_TYPE") {
-      return res.status(403).json({
-        message: error.message,
-        code: error.code,
-      });
-    }
+    // if (error.code === "FORBIDDEN_VEHICLE_TYPE") {
+    //   return res.status(403).json({
+    //     message: error.message,
+    //     code: error.code,
+    //   });
+    // }
 
     res.status(500).json({
       message: "Error processing urgent trip tap",
@@ -296,6 +296,36 @@ ticketRouter.get("/getAllRequests", async (req, res) => {
   }
 });
 
+ticketRouter.get("/getAllUrgentsNoFilters", async (req, res) => {
+  try {
+    const data = await ticketService.getAllUrgentstsNoFilters();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.get("/getAllEmployeesNoFilters", async (req, res) => {
+  try {
+    const data = await ticketService.getAllEmployeesNoFilters();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.get("/getAllUrgentTodayTrip", async (req, res) => {
+  try {
+    const data = await ticketService.getAllUrgentTrip();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 ticketRouter.get("/getAllRequestsForToday", async (req, res) => {
   try {
     const data = await ticketService.getRequestsForToday();
@@ -418,6 +448,30 @@ ticketRouter.delete("/deleteDriver/:driverId", async (req, res) => {
     const driverId = parseInt(req.params.driverId);
 
     const deletedData = await ticketService.deleteDriver(driverId);
+    res.status(200).json(deletedData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.delete("/deleteUrgentTrip/:id", async (req, res) => {
+  try {
+    const urgentId = parseInt(req.params.id);
+
+    const deletedData = await ticketService.deleteUrgents(urgentId);
+    res.status(200).json(deletedData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+ticketRouter.delete("/deleteTodayTrip/:id", async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.id);
+
+    const deletedData = await ticketService.deleteTodayTrip(tripId);
     res.status(200).json(deletedData);
   } catch (error) {
     console.error(error);

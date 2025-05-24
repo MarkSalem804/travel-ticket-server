@@ -698,9 +698,64 @@ async function getAllUrgentTrips() {
   }
 }
 
+async function getAllUrgentstsNoFilters() {
+  try {
+    const result = await ticketData.fetchallUrgentsNoFilter();
+    return result;
+  } catch (error) {
+    console.error("Error in service:", error);
+    throw error;
+  }
+}
+
+async function getAllEmployeesNoFilters() {
+  try {
+    const result = await ticketData.fetchallEmployeesNoFilter();
+    return result;
+  } catch (error) {
+    console.error("Error in service:", error);
+    throw error;
+  }
+}
+
+async function getAllUrgentTrip() {
+  try {
+    const result = await ticketData.fetchallUrgentTodayTrip();
+    return result;
+  } catch (error) {
+    console.error("Error in service:", error);
+    throw error;
+  }
+}
+
+async function deleteUrgents(id) {
+  try {
+    const deletedUrgent = await ticketData.deleteUrgentTrip(id);
+    return deletedUrgent;
+  } catch (error) {
+    console.error("Error in service:", error);
+    throw error;
+  }
+}
+
+async function deleteTodayTrip(id) {
+  try {
+    const deletedTrip = await ticketData.deleteTodaysTrip(id);
+    return deletedTrip;
+  } catch (error) {
+    console.error("Error in service:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   // urgentOut,
   // urgentIn,
+  deleteTodayTrip,
+  deleteUrgents,
+  getAllUrgentTrip,
+  getAllEmployeesNoFilters,
+  getAllUrgentstsNoFilters,
   urgentTripForm,
   exportTravelReport,
   getAllUrgentTrips,

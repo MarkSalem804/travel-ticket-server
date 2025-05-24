@@ -375,14 +375,28 @@ async function deleteDriver(driverId) {
 
 async function getAllUrgents() {
   try {
-    const { start, end } = getTodayDateRange();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0); // Start of today (local midnight)
+
+    const end = new Date();
+    end.setHours(23, 59, 59, 999); // End of today (local 11:59:59.999 PM)
+
+    // Optional: Log in both local and UTC for debugging
+    console.log("start (local):", start);
+    console.log("end (local):", end);
+    console.log("start (UTC):", start.toISOString());
+    console.log("end (UTC):", end.toISOString());
 
     const data = await prisma.urgentTrips.findMany({
       where: {
-        departure: {
-          gte: start,
-          lte: end,
-        },
+        OR: [
+          {
+            departure: {
+              gte: start,
+              lte: end,
+            },
+          },
+        ],
       },
       include: {
         vehicles: true,
@@ -398,55 +412,20 @@ async function getAllUrgents() {
   }
 }
 
-// async function getAllRequestsByDate() {
-//   try {
-//     const { start, end } = getTodayDateRange(); // Get local start and end
-
-//     // Convert local start and end to UTC manually
-//     const startUtc = new Date(
-//       start.getTime() - start.getTimezoneOffset() * 60000
-//     );
-//     const endUtc = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
-
-//     console.log("startUtc:", startUtc.toISOString());
-//     console.log("endUtc:", endUtc.toISOString());
-
-//     const data = await prisma.requestform.findMany({
-//       where: {
-//         departureTime: {
-//           gte: startUtc,
-//           lt: endUtc,
-//         },
-//       },
-//       orderBy: {
-//         departureTime: "desc",
-//       },
-//       include: {
-//         office: true,
-//         drivers: true,
-//       },
-//     });
-
-//     console.log("Fetched data:", data);
-//     return data;
-//   } catch (error) {
-//     console.error("Error fetching today's requests:", error);
-//     throw error;
-//   }
-// }
-
 async function getAllRequestsByDate() {
   try {
-    const { start, end } = getTodayDateRange(); // local start/end
+    // Get today's date range in local time
+    const start = new Date();
+    start.setHours(0, 0, 0, 0); // Start of today (local midnight)
 
-    // Convert local start and end to UTC manually
-    const startUtc = new Date(
-      start.getTime() - start.getTimezoneOffset() * 60000
-    );
-    const endUtc = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999); // End of today (local 11:59:59.999 PM)
 
-    console.log("startUtc:", startUtc.toISOString());
-    console.log("endUtc:", endUtc.toISOString());
+    // Optional: Log in both local and UTC for debugging
+    console.log("start (local):", start);
+    console.log("end (local):", end);
+    console.log("start (UTC):", start.toISOString());
+    console.log("end (UTC):", end.toISOString());
 
     // Query where either departureTime or travelOut is in the range
     const data = await prisma.requestform.findMany({
@@ -454,14 +433,14 @@ async function getAllRequestsByDate() {
         OR: [
           {
             departureTime: {
-              gte: startUtc,
-              lt: endUtc,
+              gte: start,
+              lt: end,
             },
           },
           {
             travelOut: {
-              gte: startUtc,
-              lt: endUtc,
+              gte: start,
+              lt: end,
             },
           },
         ],
@@ -472,11 +451,30 @@ async function getAllRequestsByDate() {
       },
     });
 
-    // Sort by departureTime if exists, else travelOut, descending
     const sortedData = data.sort((a, b) => {
-      const aDate = a.departureTime ?? a.travelOut;
-      const bDate = b.departureTime ?? b.travelOut;
-      return bDate - aDate;
+      // Determine categories
+      const getCategory = (item) => {
+        if (item.travelOut && item.travelIn) return 0; // Completed
+        if (item.travelOut && !item.travelIn) return 1; // Ongoing
+        return 2; // Others
+      };
+
+      const aCategory = getCategory(a);
+      const bCategory = getCategory(b);
+
+      if (aCategory !== bCategory) return aCategory - bCategory;
+
+      // Within each category, sort descending
+      if (aCategory === 0) {
+        return new Date(b.travelIn) - new Date(a.travelIn); // Completed by travelIn
+      } else if (aCategory === 1) {
+        return new Date(b.travelOut) - new Date(a.travelOut); // Ongoing by travelOut
+      } else {
+        // For "Others", fallback to latest departureTime or travelOut
+        const aDate = new Date(a.departureTime ?? a.travelOut ?? 0);
+        const bDate = new Date(b.departureTime ?? b.travelOut ?? 0);
+        return bDate - aDate;
+      }
     });
 
     console.log("Fetched and sorted data:", sortedData);
@@ -722,11 +720,11 @@ async function urgentTap(rfid) {
       throw new Error("Vehicle not found for the given RFID");
     }
 
-    if (vehicle.type === "Government (Red Plate)") {
-      const err = new Error("Only for Private Vehicles");
-      err.code = "FORBIDDEN_VEHICLE_TYPE";
-      throw err;
-    }
+    // if (vehicle.type === "Government (Red Plate)") {
+    //   const err = new Error("Only for Private Vehicles");
+    //   err.code = "FORBIDDEN_VEHICLE_TYPE";
+    //   throw err;
+    // }
 
     const newUrgentTrip = await prisma.urgentTrips.create({
       data: {
@@ -850,9 +848,93 @@ async function urgentTapToRequestForm(rfid) {
   }
 }
 
+async function fetchallUrgentsNoFilter() {
+  try {
+    const urgents = await prisma.urgentTrips.findMany({
+      where: {
+        type: "Government (Red Plate)",
+      },
+      orderBy: {
+        arrival: "desc",
+      },
+    });
+    return urgents;
+  } catch (error) {
+    console.error("Error fetching", error);
+    throw error;
+  }
+}
+
+async function fetchallEmployeesNoFilter() {
+  try {
+    const urgents = await prisma.urgentTrips.findMany({
+      where: {
+        type: "Employee (Private)",
+      },
+      orderBy: {
+        arrival: "desc",
+      },
+    });
+    return urgents;
+  } catch (error) {
+    console.error("Error fetching", error);
+    throw error;
+  }
+}
+
+async function fetchallUrgentTodayTrip() {
+  try {
+    const urgents = await prisma.requestform.findMany({
+      where: {
+        status: "Urgent",
+      },
+      orderBy: {
+        travelIn: "desc",
+      },
+    });
+    return urgents;
+  } catch (error) {
+    console.error("Error fetching", error);
+    throw error;
+  }
+}
+
+async function deleteUrgentTrip(id) {
+  try {
+    const deletedData = await prisma.urgentTrips.delete({
+      where: {
+        id: id,
+      },
+    });
+    return deletedData;
+  } catch (error) {
+    console.error("Error deleting", error);
+    throw error;
+  }
+}
+
+async function deleteTodaysTrip(id) {
+  try {
+    const deletedData = await prisma.requestform.delete({
+      where: {
+        id: id,
+      },
+    });
+    return deletedData;
+  } catch (error) {
+    console.error("Error deleting", error);
+    throw error;
+  }
+}
+
 module.exports = {
   // urgentTripOut,
   // urgentTripIn,
+  fetchallUrgentTodayTrip,
+  deleteTodaysTrip,
+  deleteUrgentTrip,
+  fetchallEmployeesNoFilter,
+  fetchallUrgentsNoFilter,
   exportReportData,
   getAllUrgents,
   urgentTap,
