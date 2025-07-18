@@ -294,6 +294,22 @@ async function submitTicket(data) {
       driverName = "Roberto D. Baarde Jr";
       driverContactNo = "09065263190";
       driverEmail = "robertobaarde@yahoo.com.ph";
+    }
+
+    if (
+      data.email === "samiesan.bagbagay@deped.gov.ph" ||
+      data.email === "shaina.montano@deped.gov.ph" ||
+      data.email === "merzi.sayaman@deped.gov.ph" ||
+      data.email === "annapatricia.pacala@deped.gov.ph"
+    ) {
+      vehicleId = 3;
+      vehicleName = "TOYOTA HI ACE";
+      plateNumber = "P3G 118";
+      rfid = "0005579237";
+      driverId = 1;
+      driverName = "Wilfredo P. Estopace";
+      driverContactNo = "09664526697";
+      driverEmail = "markjoseph.salem-ic@deped.gov.ph";
     } else if (driverDetails) {
       vehicleId = data.vehicleId || null;
       vehicleName = data.vehicleName || null;
@@ -304,6 +320,14 @@ async function submitTicket(data) {
       driverContactNo = driverDetails ? driverDetails.contactNo : null;
       driverEmail = driverDetails ? driverDetails.driverEmail : null;
     }
+
+    // Generate trackingId in the format TID-MMDDYY-<random4digits>
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
+    const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
 
     const requestFormData = {
       status: data.status || "Pending",
@@ -330,9 +354,15 @@ async function submitTicket(data) {
       driverName,
       driverContactNo,
       driverEmail,
+      trackingId, // include trackingId on creation
     };
 
+    // Submit the request with trackingId included
     const submittedRequest = await ticketData.addTicket(requestFormData);
+
+    // Optionally, fetch the created request to return (not strictly needed)
+    // const updatedRequest = await ticketData.getTicketById(submittedRequest.id);
+    // return updatedRequest;
     return submittedRequest;
   } catch (error) {
     console.error("❌ Error submitting ticket!", error);
@@ -417,6 +447,7 @@ async function updateRequest(ticketId, updatedData) {
         uniqueUID,
         {
           requestedBy: updatedData.requestedBy,
+          trackingId: updatedData.trackingId,
           email: updatedData.email,
           driverName: driverDetails?.driverName || "N/A",
           vehicleName: vehicleDetails?.vehicleName || "N/A",
@@ -447,6 +478,7 @@ async function updateRequest(ticketId, updatedData) {
         authorizedPassengers: updatedData.authorizedPassengers,
         created_at,
         barcodePath,
+        trackingId: updatedRequest.trackingId, // add trackingId to travelSummary
       };
       const ticketPath = await generateTripTicket.generateTripTicket(
         travelSummary

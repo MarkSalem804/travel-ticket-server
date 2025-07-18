@@ -75,6 +75,7 @@ model requestform {
   travelIn             DateTime?
   travelStatus         String?
   created_at           DateTime? @default(now())
+  trackingId           String?
 }
 
 model offices {
@@ -103,15 +104,16 @@ model vehicles {
 }
 
 model urgentTrips {
-  id          Int       @id @default(autoincrement())
-  rfid        String?
-  driverName  String?
-  ownerName   String?
-  plateNo     String?
-  vehicleName String?
-  type        String?
-  departure   DateTime?
-  arrival     DateTime?
-  vehicles    vehicles? @relation(fields: [vehiclesId], references: [id])
-  vehiclesId  Int?
+  id             Int       @id @default(autoincrement())
+  rfid           String?
+  driverName     String?
+  ownerName      String?
+  plateNo        String?
+  vehicleName    String?
+  type           String?
+  departure      DateTime?
+  arrival        DateTime?
+  vehicles       vehicles? @relation(fields: [vehiclesId], references: [id])
+  vehiclesId     Int?
+  trackingNumber String?
 }
