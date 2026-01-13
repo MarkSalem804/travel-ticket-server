@@ -331,14 +331,6 @@ async function submitTicket(data) {
     const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
     const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
 
-    // Generate trackingId in the format TID-MMDDYY-<random4digits>
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const yy = String(now.getFullYear()).slice(-2);
-    const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
-    const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
-
     const requestFormData = {
       status: data.status || "Pending",
       requestedBy: data.requestedBy,
