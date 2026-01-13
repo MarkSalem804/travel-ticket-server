@@ -331,6 +331,14 @@ async function submitTicket(data) {
     const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
     const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
 
+    // Generate trackingId in the format TID-MMDDYY-<random4digits>
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
+    const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
+
     const requestFormData = {
       status: data.status || "Pending",
       requestedBy: data.requestedBy,
@@ -357,10 +365,16 @@ async function submitTicket(data) {
       driverContactNo,
       driverEmail,
       trackingId, // include trackingId on creation
+      trackingId, // include trackingId on creation
     };
 
     // Submit the request with trackingId included
+    // Submit the request with trackingId included
     const submittedRequest = await ticketData.addTicket(requestFormData);
+
+    // Optionally, fetch the created request to return (not strictly needed)
+    // const updatedRequest = await ticketData.getTicketById(submittedRequest.id);
+    // return updatedRequest;
 
     // Optionally, fetch the created request to return (not strictly needed)
     // const updatedRequest = await ticketData.getTicketById(submittedRequest.id);
@@ -451,6 +465,7 @@ async function updateRequest(ticketId, updatedData) {
         {
           requestedBy: updatedData.requestedBy,
           trackingId: updatedData.trackingId,
+          trackingId: updatedData.trackingId,
           email: updatedData.email,
           driverName: driverDetails?.driverName || "N/A",
           vehicleName: vehicleDetails?.vehicleName || "N/A",
@@ -481,6 +496,7 @@ async function updateRequest(ticketId, updatedData) {
         authorizedPassengers: updatedData.authorizedPassengers,
         created_at,
         barcodePath,
+        trackingId: updatedRequest.trackingId, // add trackingId to travelSummary
         trackingId: updatedRequest.trackingId, // add trackingId to travelSummary
       };
       const ticketPath = await generateTripTicket.generateTripTicket(

@@ -51,6 +51,20 @@ function setTextIfFieldExists(form, fieldName, value, fontSize = 9) {
   }
 }
 
+function setTextIfFieldExists(form, fieldName, value, fontSize = 9) {
+  let field;
+  try {
+    field = form.getTextField(fieldName);
+    if (field) {
+      field.setText(value);
+      field.setFontSize(fontSize);
+      field.enableReadOnly();
+    }
+  } catch (e) {
+    // Field does not exist, ignore
+  }
+}
+
 // Load the blank trip ticket template
 async function generateTripTicket(data) {
   console.log(data);
@@ -74,9 +88,33 @@ async function generateTripTicket(data) {
     "Trip Ticket Request New.pdf"
   );
 
+  const templatePath3 = path.join(
+    __dirname,
+    "../../templates",
+    "Trip Ticket Request New.pdf"
+  );
+
   const specialEmails = [
     "maricel.aureo@deped.gov.ph",
     "ronnie.yohan@deped.gov.ph",
+    "samiesan.bagbagay@deped.gov.ph",
+  ];
+
+  // Override values for samiesan.bagbagay@deped.gov.ph
+  if (data.email === "samiesan.bagbagay@deped.gov.ph") {
+    data.driverName = "Wilfredo P. Estopace";
+    data.vehicleName = "TOYOTA HI ACE";
+    data.plateNumber = "P3G 118";
+  }
+
+  let selectedTemplatePath;
+  if (data.email === "samiesan.bagbagay@deped.gov.ph") {
+    selectedTemplatePath = templatePath3;
+  } else if (specialEmails.includes(data.email)) {
+    selectedTemplatePath = templatePath2;
+  } else {
+    selectedTemplatePath = templatePath;
+  }
     "samiesan.bagbagay@deped.gov.ph",
   ];
 
