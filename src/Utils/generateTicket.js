@@ -37,6 +37,20 @@ function truncateWithEllipsis(text, maxLength) {
   return text.length > maxLength ? text.slice(0, maxLength - 3) + "..." : text;
 }
 
+function setTextIfFieldExists(form, fieldName, value, fontSize = 9) {
+  let field;
+  try {
+    field = form.getTextField(fieldName);
+    if (field) {
+      field.setText(value);
+      field.setFontSize(fontSize);
+      field.enableReadOnly();
+    }
+  } catch (e) {
+    // Field does not exist, ignore
+  }
+}
+
 // Load the blank trip ticket template
 async function generateTripTicket(data) {
   console.log(data);
@@ -45,7 +59,7 @@ async function generateTripTicket(data) {
   const templatePath = path.join(
     __dirname,
     "../../templates",
-    "TRIP-TICKET SoftCopy.pdf"
+    "SCHOOLS DIVISION OF IMUS CITY - REVISED FORM 2025_.pdf"
   );
 
   const templatePath2 = path.join(
@@ -54,14 +68,33 @@ async function generateTripTicket(data) {
     "SDOIC - ASDS - Trip approval.pdf"
   );
 
+  const templatePath3 = path.join(
+    __dirname,
+    "../../templates",
+    "Trip Ticket Request New.pdf"
+  );
+
   const specialEmails = [
     "maricel.aureo@deped.gov.ph",
     "ronnie.yohan@deped.gov.ph",
+    "samiesan.bagbagay@deped.gov.ph",
   ];
 
-  const selectedTemplatePath = specialEmails.includes(data.email)
-    ? templatePath2
-    : templatePath;
+  // Override values for samiesan.bagbagay@deped.gov.ph
+  if (data.email === "samiesan.bagbagay@deped.gov.ph") {
+    data.driverName = "Wilfredo P. Estopace";
+    data.vehicleName = "TOYOTA HI ACE";
+    data.plateNumber = "P3G 118";
+  }
+
+  let selectedTemplatePath;
+  if (data.email === "samiesan.bagbagay@deped.gov.ph") {
+    selectedTemplatePath = templatePath3;
+  } else if (specialEmails.includes(data.email)) {
+    selectedTemplatePath = templatePath2;
+  } else {
+    selectedTemplatePath = templatePath;
+  }
 
   const templateBytes = fs.readFileSync(selectedTemplatePath);
 
@@ -94,82 +127,38 @@ async function generateTripTicket(data) {
   const formattedCreatedAt =
     DateTime.fromJSDate(createdAtDate).toFormat("yyyy-MM-dd hh:mm a");
 
-  const requestorField = form.getTextField("REQUESTOR");
-  requestorField.setText(data.requestedBy);
-  requestorField.setFontSize(9);
-  requestorField.enableReadOnly();
-
-  const requestorField2 = form.getTextField("REQUESTEDBY");
-  requestorField2.setText(data.requestedBy);
-  requestorField2.setFontSize(9);
-  requestorField2.enableReadOnly();
-
-  const driverField = form.getTextField("DRIVERNAME");
-  driverField.setText(data.driverName);
-  driverField.setFontSize(9);
-  driverField.enableReadOnly();
-
-  const authorizedDriverField = form.getTextField("AUTHORIZEDDRIVER");
-  authorizedDriverField.setText(data.driverName);
-  authorizedDriverField.setFontSize(9);
-  authorizedDriverField.enableReadOnly();
-
-  const vehicleField = form.getTextField("VEHICLENAME");
-  vehicleField.setText(data.vehicleName);
-  vehicleField.setFontSize(9);
-  vehicleField.enableReadOnly();
-
-  const plateField = form.getTextField("PLATENO");
-  plateField.setText(data.plateNumber);
-  plateField.setFontSize(9);
-  plateField.enableReadOnly();
-
-  const createdAtField = form.getTextField("CREATEDAT");
-  createdAtField.setText(formattedCreatedAt);
-  createdAtField.setFontSize(9);
-  createdAtField.enableReadOnly();
-
-  const purposeField = form.getTextField("PURPOSE");
-  purposeField.setText(truncateWithEllipsis(data.purpose, 125));
-  purposeField.setFontSize(9);
-  purposeField.enableReadOnly();
-
-  const destinationField = form.getTextField("DESTINATION");
-  destinationField.setText(truncateWithEllipsis(data.destination, 50));
-  destinationField.setFontSize(9);
-  destinationField.enableReadOnly();
-
-  const departureDateField = form.getTextField("DEPARTUREDATE");
-  departureDateField.setText(formattedDepartureDate);
-  departureDateField.setFontSize(9);
-  departureDateField.enableReadOnly();
-
-  const departureTimeField = form.getTextField("DEPARTURETIME");
-  departureTimeField.setText(formattedDepartureTime);
-  departureTimeField.setFontSize(9);
-  departureTimeField.enableReadOnly();
-
-  const arrivalDateField = form.getTextField("ARRIVALDATE");
-  arrivalDateField.setText(formattedArrivalDate);
-  arrivalDateField.setFontSize(9);
-  arrivalDateField.enableReadOnly();
-
-  const arrivalTimeField = form.getTextField("ARRIVALTIME");
-  arrivalTimeField.setText(formattedArrivalTime);
-  arrivalTimeField.setFontSize(9);
-  arrivalTimeField.enableReadOnly();
-
-  const passengersField = form.getTextField("PASSENGERS");
-  passengersField.setText(truncateWithEllipsis(data.authorizedPassengers, 125));
-  passengersField.setFontSize(9);
-  passengersField.enableReadOnly();
-
-  const passengersField2 = form.getTextField("AUTHORIZEDPASSENGERS");
-  passengersField2.setText(
+  setTextIfFieldExists(form, "REQUESTOR", data.requestedBy);
+  setTextIfFieldExists(form, "TRACKINGNUMBER", data.trackingId);
+  setTextIfFieldExists(form, "REQUESTEDBY", data.requestedBy);
+  setTextIfFieldExists(form, "DRIVERNAME", data.driverName);
+  setTextIfFieldExists(form, "AUTHORIZEDDRIVER", data.driverName);
+  setTextIfFieldExists(form, "VEHICLENAME", data.vehicleName);
+  setTextIfFieldExists(form, "PLATENO", data.plateNumber);
+  setTextIfFieldExists(form, "CREATEDAT", formattedCreatedAt);
+  setTextIfFieldExists(
+    form,
+    "PURPOSE",
+    truncateWithEllipsis(data.purpose, 125)
+  );
+  setTextIfFieldExists(
+    form,
+    "DESTINATION",
+    truncateWithEllipsis(data.destination, 50)
+  );
+  setTextIfFieldExists(form, "DEPARTUREDATE", formattedDepartureDate);
+  setTextIfFieldExists(form, "DEPARTURETIME", formattedDepartureTime);
+  setTextIfFieldExists(form, "ARRIVALDATE", formattedArrivalDate);
+  setTextIfFieldExists(form, "ARRIVALTIME", formattedArrivalTime);
+  setTextIfFieldExists(
+    form,
+    "PASSENGERS",
     truncateWithEllipsis(data.authorizedPassengers, 125)
   );
-  passengersField2.setFontSize(9);
-  passengersField2.enableReadOnly();
+  setTextIfFieldExists(
+    form,
+    "AUTHORIZEDPASSENGERS",
+    truncateWithEllipsis(data.authorizedPassengers, 125)
+  );
 
   form.flatten();
 

@@ -6,7 +6,7 @@ let io;
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "https://tripticket.depedimuscity.com", // or specify your frontend URL if needed
+      origin: "https://sdotripticket.depedimuscity.com", // or specify your frontend URL if needed
     },
   });
 

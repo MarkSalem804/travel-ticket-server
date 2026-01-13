@@ -47,6 +47,7 @@ async function exportTravelReport(startDate, endDate) {
 
     // Define columns with headers and filtering
     worksheet.columns = [
+      { header: "TRACKING ID", key: "trackingId", width: 20 },
       { header: "REQUESTOR", key: "requestedBy", width: 20 },
       { header: "OFFICE", key: "requestorOffice", width: 30 },
       { header: "DESIGNATION", key: "designation", width: 20 },
@@ -79,6 +80,7 @@ async function exportTravelReport(startDate, endDate) {
     // Add rows
     reportData.forEach((item) => {
       worksheet.addRow({
+        trackingId: item.trackingId,
         requestedBy: item.requestedBy,
         requestorOffice: item.requestorOffice,
         designation: item.designation,
@@ -93,7 +95,7 @@ async function exportTravelReport(startDate, endDate) {
         travelStatus: item.travelStatus,
       });
     });
-
+    // PaulPaul
     // Return workbook as a buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
@@ -285,13 +287,29 @@ async function submitTicket(data) {
     let plateNumber = null;
     let rfid = null;
 
-    if (data.email === "maricel.aureo@deped.gov.ph") {
-      vehicleId = 4;
+    if (data.email === "carla.timbang001@deped.gov.ph") {
+      vehicleId = 1;
       vehicleName = "TOYOTA INNOVA";
       plateNumber = "SLG 723";
       rfid = "0005633227";
-      driverId = 6;
+      driverId = 5;
       driverName = "Roberto D. Baarde Jr";
+      driverContactNo = "09065263190";
+      driverEmail = "robertobaarde@yahoo.com.ph";
+    }
+
+    if (
+      data.email === "samiesan.bagbagay@deped.gov.ph" ||
+      data.email === "shaina.montano@deped.gov.ph" ||
+      data.email === "merzi.sayaman@deped.gov.ph" ||
+      data.email === "annapatricia.pacala@deped.gov.ph"
+    ) {
+      vehicleId = 3;
+      vehicleName = "TOYOTA HI ACE";
+      plateNumber = "P3G 118";
+      rfid = "0005579237";
+      driverId = 5;
+      driverName = "Roberto D. Baarde jr";
       driverContactNo = "09065263190";
       driverEmail = "robertobaarde@yahoo.com.ph";
     } else if (driverDetails) {
@@ -304,6 +322,14 @@ async function submitTicket(data) {
       driverContactNo = driverDetails ? driverDetails.contactNo : null;
       driverEmail = driverDetails ? driverDetails.driverEmail : null;
     }
+
+    // Generate trackingId in the format TID-MMDDYY-<random4digits>
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    const unique = Math.floor(1000 + Math.random() * 9000); // random 4-digit number
+    const trackingId = `TID-${mm}${dd}${yy}-${unique}`;
 
     const requestFormData = {
       status: data.status || "Pending",
@@ -330,9 +356,15 @@ async function submitTicket(data) {
       driverName,
       driverContactNo,
       driverEmail,
+      trackingId, // include trackingId on creation
     };
 
+    // Submit the request with trackingId included
     const submittedRequest = await ticketData.addTicket(requestFormData);
+
+    // Optionally, fetch the created request to return (not strictly needed)
+    // const updatedRequest = await ticketData.getTicketById(submittedRequest.id);
+    // return updatedRequest;
     return submittedRequest;
   } catch (error) {
     console.error("❌ Error submitting ticket!", error);
@@ -392,6 +424,7 @@ async function updateRequest(ticketId, updatedData) {
       driverContactNo: driverDetails ? driverDetails.contactNo : null,
       driverEmail: driverDetails ? driverDetails.email : null,
       created_at,
+      trackingId: existingTicket?.trackingId, // Preserve existing trackingId
     };
 
     // Update request form first
@@ -417,6 +450,7 @@ async function updateRequest(ticketId, updatedData) {
         uniqueUID,
         {
           requestedBy: updatedData.requestedBy,
+          trackingId: updatedData.trackingId,
           email: updatedData.email,
           driverName: driverDetails?.driverName || "N/A",
           vehicleName: vehicleDetails?.vehicleName || "N/A",
@@ -447,18 +481,23 @@ async function updateRequest(ticketId, updatedData) {
         authorizedPassengers: updatedData.authorizedPassengers,
         created_at,
         barcodePath,
+        trackingId: updatedRequest.trackingId, // add trackingId to travelSummary
       };
       const ticketPath = await generateTripTicket.generateTripTicket(
         travelSummary
       );
 
       // ✅ Send Email with PDF and Barcode Attachment
-      const recipientEmails = [updatedData?.email, driverDetails?.email].filter(
-        Boolean
-      );
+      const recipientEmails = [
+        updatedData?.email,
+        driverDetails?.email,
+        "carla.timbang001@deped.gov.ph",
+        "maricel.aureo@deped.gov.ph",
+      ].filter(Boolean);
       const subject = "Trip Ticket Approved";
       const emailBody = `
         <h3>Your trip has been approved</h3>
+        <p>Tracking ID: ${updatedRequest.trackingId}</p>
         <p>Kindly bring the following hardcopy of the trip ticket provided below to the authorities for signatures.</p>
         <p>For any inquiries, please contact support.</p>
       `;
@@ -476,6 +515,7 @@ async function updateRequest(ticketId, updatedData) {
       const subject = "Trip Ticket Rejected";
       const emailBody = `
         <h3>Your trip request has been rejected</h3>
+        <p>Tracking ID: ${updatedRequest.trackingId}</p>
         <p>Unfortunately, your trip ticket request was not approved.</p>
         <p>For further details, please contact support or your office administrator.</p>
       `;
